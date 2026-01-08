@@ -37,9 +37,9 @@ I refactored the script into a `TaskManager` class.
 
 ## 4. Visual Proof
 
-The Code(taskmaster.py): ![Code](../../../Assets/Picture/week2/Main_code.png)
+The Code(taskmaster.py): ![Code](../../../Picture/week2/Main_code.png)
 
-The Database (tasks.json): ![Data](../../../Assets/Picture/week2/sample_data.png)
+The Database (tasks.json): ![Data](../../../Picture/week2/sample_data.png)
 
 The raw data persisting on the hard drive.
 

@@ -50,14 +50,14 @@ def complete_task(self, task_id):
 
 Task Completion: 
 
-![List](../../../Assets/Picture/week2/Listed.png)
+![List](../../../Picture/week2/Listed.png)
 
-![Complete](../../../Assets/Picture/week2/Complete.png)
+![Complete](../../../Picture/week2/Complete.png)
 
 The CLI successfully locating Task ID 1 and updating the icon from ☐ to ✅.
 
 Error Handling:
 
-![Error Handling](../../../Assets/Picture/week2/Error_Handling.png)
+![Error Handling](../../../Picture/week2/Error_Handling.png)
 
 The system gracefully handling a request for a non-existent ID.

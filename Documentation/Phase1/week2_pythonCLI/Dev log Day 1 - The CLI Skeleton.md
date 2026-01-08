@@ -52,6 +52,8 @@ I had to adjust my mental model from **Game Dev** to **Scripting**.
 
 ## 5. Visual Proof
 
-The Skeleton Test: ![Test](../../../Assets/Picture/week2/def_skeleton.png)
+The Skeleton Test: 
+
+![Test](../../../Picture/week2/def_skeleton.png)
 
 Verifying that the script accepts arguments and prints feedback.
