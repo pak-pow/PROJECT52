@@ -48,5 +48,10 @@ I encountered an `unrecognized arguments` error when testing:
 
 Successful Deletion:
 
+![List_WDel](../../../Picture/week2/List_wDelete.png)
+
+![Confirm](../../../Picture/week2/Del_Confirm.png)
+
 Terminal output confirming the permanent removal of Task ID 5.
 
+![Successful Deletion](../../../Picture/week2/Success_del.png)
