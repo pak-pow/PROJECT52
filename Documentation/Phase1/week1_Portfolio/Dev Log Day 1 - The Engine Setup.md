@@ -71,14 +71,4 @@ I encountered a logic error in how I attempted to execute the code.
 The Skeleton (Greyboxing):
 The raw geometry of the site before textures (CSS) are applied.
 
-**The Workbench (Code Structure):** ![VS Code Setup](../../../Assets/Picture/week1/vs_code_setup.png) **The Output (Browser Render):** ![Browser Output](../../../Assets/Picture/week1/output.png)
-## 6. Next Actions
-
-The system is currently running on default browser styles (User Agent Stylesheet), which is ugly. My next sprint will focus on writing the **Custom Renderer** in `style.css` to handle layout (Flexbox) and typography.
-
-### QUALITY CHECK
--   [ ] **Did you rename the folder?** If you don't change `assests` to `assets`, the images in the log will still break.
--   [ ] **Did you commit?** `git add .` then `git commit -m "docs: expand day 1 journal"`
-
-### NEXT ACTION
-The documentation is solid. The folder is fixed. Now we must make it look good.
+**The Workbench (Code Structure):** ![VS Code Setup](../../../Picture/week1/vs_code_setup.png) **The Output (Browser Render):** ![Browser Output](../../../Picture/week1/output.png)

@@ -51,6 +51,6 @@ I had to update the Navigation Bar to support **Deep Linking**.
 
 ## 3. Visual Proof
 
-**The New Hero (Left Aligned):** ![New Hero](../../../Assets/Picture/week1/new_hero.png)
+**The New Hero (Left Aligned):** ![New Hero](../../../Picture/week1/new_hero.png)
 
-**The About Page:** ![About Page](../../../Assets/Picture/week1/about.png)
+**The About Page:** ![About Page](../../../Picture/week1/about.png)

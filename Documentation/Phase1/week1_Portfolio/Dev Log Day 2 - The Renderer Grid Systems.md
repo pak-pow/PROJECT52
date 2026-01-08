@@ -74,17 +74,9 @@ I encountered friction not in the code, but in the **Documentation Workflow**.
 
 ## 5. Visual Proof
 
-![The Grid System (Tilemap Logic)](../../../Assets/Picture/week1/code_snippet_grid.png)
+![The Grid System (Tilemap Logic)](../../../Picture/week1/code_snippet_grid.png)
 The Project Cards automatically stacking based on available screen width.
 
-![The Full Interface (Texture Applied)](../../../Assets/Picture/week1/output_grid.png)
+![The Full Interface (Texture Applied)](../../../Picture/week1/output_grid.png)
 The final render with Dark Mode and Hover effects active.
 
-## 6. Next Actions
-
-The system is stable and visually consistent. However, it feels static.
-My next sprint (Wednesday) will focus on "Juice" (Game Feel):
-
-1. Adding CSS Animations (Keyframes).
-2. Deep Mobile Inspection (Media Queries).    
-3. Ensuring the "Contact" button provides satisfying feedback.

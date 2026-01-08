@@ -35,11 +35,11 @@ a:hover {
 
 ## 4. Visual Proof
 
-The Mission Control Hub (Live): ![Main Menu](../../../Assets/Picture/week1/main_menu.png)
+The Mission Control Hub (Live): ![Main Menu](../../../Picture/week1/main_menu.png)
 
 The root entry point handling navigation to sub-projects.
 
-Deployment Success: ![Deployed](../../../Assets/Picture/week1/deployed.png)
+Deployment Success: ![Deployed](../../../Picture/week1/deployed.png)
 
 Green checkmark on GitHub Actions confirming a successful build.
 

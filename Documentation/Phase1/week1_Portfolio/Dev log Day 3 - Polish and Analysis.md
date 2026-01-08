@@ -51,8 +51,8 @@ I successfully integrated two different layout engines:
 
 ## 4. Visual Proof
 
-**Mobile View (Stacked Nav):** ![Mobile View](../../../Assets/Picture/week1/mobile_view.png)
+**Mobile View (Stacked Nav):** ![Mobile View](../../../Picture/week1/mobile_view.png)
 
-**The Custom Scrollbar:** ![Mobile View](../../../Assets/Picture/week1/scroll-bar.png)
+**The Custom Scrollbar:** ![Mobile View](../../../Picture/week1/scroll-bar.png)
 
 
