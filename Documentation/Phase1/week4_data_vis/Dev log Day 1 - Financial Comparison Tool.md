@@ -48,3 +48,4 @@ plt.fill_between(days, price_a, price_b, where=(price_a <= price_b),
 
 _The generated chart showing the volatility of Crypto compared to the stability of Gold._
 
+![Day1](../../../Picture/week4/day1.png)
