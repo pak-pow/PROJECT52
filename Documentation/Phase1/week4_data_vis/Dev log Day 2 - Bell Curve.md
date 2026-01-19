@@ -42,3 +42,5 @@ scores = np.clip(scores, 0, 100)
 ## 4. Visual Proof
 
 _The histogram showing the bell curve of student performance._
+
+![Day2](../../../Picture/week4/day2.png)
