@@ -59,3 +59,5 @@ axs[1, 0].set_facecolor('#222')
 ## 4. Visual Proof
 
 _The 2x2 Data Command Center showing diverse dataset visualizations._
+
+![Day4](../../../Picture/week4/day4.png)
