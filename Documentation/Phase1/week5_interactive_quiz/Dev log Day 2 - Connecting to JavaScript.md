@@ -50,3 +50,5 @@ I encountered a logic error where the buttons wouldn't update.
 
 ## 3. Visual Proof
 _The interface now successfully loading data from JavaScript._
+
+![Day2](../../../Picture/week5/day2.png)
