@@ -48,3 +48,6 @@ _Terminal Confirmation:_
 `✅ ACCESS GRANTED. We are logged in!`
 `👤 Site confirms: Logged in as my_secret_bot`
 
+![Day5.1](../../../Picture/week6/day5.1.png)
+
+![Day5.2](../../../Picture/week6/day5.2.png)
