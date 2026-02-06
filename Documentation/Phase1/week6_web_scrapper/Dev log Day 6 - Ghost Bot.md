@@ -36,3 +36,5 @@ driver = webdriver.Chrome(options=chrome_options)
 
 ## 4. The Output
 _A clean CSV dossier containing all 100 job listings, generated invisibly:_
+
+![Day6](../../../Picture/week6/day6.png)
