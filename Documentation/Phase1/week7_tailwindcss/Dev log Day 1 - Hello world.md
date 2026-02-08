@@ -30,3 +30,5 @@ For this project, I am loading Tailwind via a CDN link (`<script src="..."></scr
 
 ## 4. The Output
 A "Hello World" screen featuring modern UI patterns (gradients, colored shadows) rendered instantly without a stylesheet.
+
+![Day1](../../../Picture/week7/day1.png)
