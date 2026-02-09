@@ -34,3 +34,5 @@ Modern sites often use "blobs" of color to create depth.
 
 ## 4. The Output
 A fully responsive, dark-mode landing page with a sticky header and interactive hover states.
+
+![Day2](../../../Picture/week7/day2.png)
