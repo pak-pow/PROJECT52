@@ -149,3 +149,7 @@ npx tailwindcss -i ./src/input.css -o ./src/output.css --watch
 ---
 **Total Time:** 3 Hours
 **Mood:** 🟢 Empowered (I own the build process now).
+
+![Day3.1](../../../Picture/week7/day3.1.png)
+
+![Day3.2](../../../Picture/week7/day3.2.png)
