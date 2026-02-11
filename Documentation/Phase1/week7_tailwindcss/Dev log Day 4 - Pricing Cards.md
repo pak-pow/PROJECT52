@@ -46,6 +46,8 @@ A responsive 3-card pricing grid.
 - **Mobile:** Cards stack vertically.
 - **Desktop:** Cards sit side-by-side, with the middle card scaled up and highlighted with a purple border (`border-purple-500`) and a floating badge.
 
+![Day4](../../../Picture/week7/day4.png)
+
 ---
 ## 4. Standard Operating Procedures (Shut Down)
 
