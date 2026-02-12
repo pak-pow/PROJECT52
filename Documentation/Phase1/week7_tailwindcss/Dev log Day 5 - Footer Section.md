@@ -41,6 +41,14 @@ A complete, responsive landing page featuring:
 3.  **Pricing Table:** scaling cards with floating "Popular" badges.
 4.  **Footer:** Professional multi-column navigation.
 
+![Day5.1](../../../Picture/week7/day5.1.png)
+
+![Day5.2](../../../Picture/week7/day5.2.png)
+
+![Day5.3](../../../Picture/week7/day5.3.png)
+
+![Day5.4](../../../Picture/week7/day5.4.png)
+
 ---
 
 ## 4. Standard Operating Procedures (Project Close)
