@@ -43,6 +43,10 @@ A fully interactive Pricing Component.
 - **Visual Feedback:** The knob slides, color changes to purple.
 - **Data Update:** Prices update instantly (e.g., $29 $\to$ $290).
 
+![Day6.1](../../../Picture/week7/day6.1.png)
+
+![Day6.2](../../../Picture/week7/day6.2.png)
+
 
 ---
 
