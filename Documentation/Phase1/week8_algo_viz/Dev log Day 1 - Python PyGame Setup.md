@@ -40,6 +40,11 @@ Unlike web dev (which waits for events), Pygame runs a continuous loop (60 frame
 ## 3. The Output
 A window that displays 50 random integers as white bars. Pressing `R` instantly generates a new dataset.
 
+![Day1.1](../../../Picture/week8/day1.1.png)
+
+![Day1.2](../../../Picture/week8/day1.2.png)
+
+
 ---
 **Total Time:** 1 Hour
 **Next Steps:** Implementing the first algorithm (Bubble Sort).
