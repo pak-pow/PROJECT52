@@ -36,6 +36,10 @@ The algorithm pushes the largest number to the end of the list in each pass (lik
 ## 3. The Output
 A visualizer where pressing `SPACE` triggers an animated sort. You can see the Green and Red blocks moving across the screen, pushing the tallest bars to the right side until the list is perfectly ascending.
 
+![Day2.1](../../../Picture/week8/day2.1.png)
+
+![Day2.2](../../../Picture/week8/day2.2.png)
+
 ---
 
 ## 4. Source Code (Current Version)
