@@ -66,4 +66,12 @@ return input.id.charAt(0).toUpperCase() + input.id.slice(1);
 
 The library has evolved from a silent logic engine into a fully interactive Front-End tool. It intercepts the form submission, grades the data, and if it fails, immediately manipulates the DOM to provide precise, highlighted visual feedback to the user.
 
+![Day4.1](../../../Picture/week9/day4.1.png)
+
+![Day4.2](../../../Picture/week9/day4.2.png)
+
+![Day4.3](../../../Picture/week9/day4.3.png)
+
+![Day4.4](../../../Picture/week9/day4.4.png)
+
 ---
