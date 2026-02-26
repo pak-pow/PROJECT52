@@ -83,5 +83,13 @@ The Form Validation Library (v1.0) is officially complete.
 - **Dynamic:** Uses DOM Traversal to inject UI states.
 - **Real-Time:** Validates individually on keystrokes, and globally on submission.
 
+![Day5.1](../../../Picture/week9/day5.1.png)
+
+![Day5.2](../../../Picture/week9/day5.2.png)
+
+![Day5.3](../../../Picture/week9/day5.3.png)
+
+![Day5.4](../../../Picture/week9/day5.4.png)
+
 ---
 
