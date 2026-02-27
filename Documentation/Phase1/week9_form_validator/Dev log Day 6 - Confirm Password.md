@@ -34,4 +34,9 @@ The engine searches the entire document for the specific ID provided in the para
 
 The Validator Library now fully supports cross-field dependency checks in real-time. It successfully flags when "Confirm Password" does not match the original "Password" field and instantly clears the error when the keystrokes align.
 
+
+![Day6.1](../../../Picture/week9/day6.1.png)
+
+![Day6.2](../../../Picture/week9/day6.2.png)
+
 ---
