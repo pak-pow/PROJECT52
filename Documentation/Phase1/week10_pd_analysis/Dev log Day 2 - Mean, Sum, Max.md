@@ -33,4 +33,7 @@ To make the raw numbers readable for human users, I utilized Python's f-string f
 ## 3. The Output
 The script now successfully isolates the DataFrame and prints a cleanly formatted "Core Statistics" dashboard to the terminal.
 
+![Day2](../../../Picture/week10/day2.png)
+
+
 ---
