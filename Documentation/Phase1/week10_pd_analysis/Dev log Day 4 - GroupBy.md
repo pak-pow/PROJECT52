@@ -30,4 +30,8 @@ I intentionally wrote detailed, multi-line comments explaining the mechanics of 
 ## 3. The Output
 The script now successfully categorizes the dataset, allowing for direct comparisons of total revenue and average daily crashes across different operating systems.
 
+![Day4.1](../../../Picture/week10/day4.1.png)
+
+![Day4.2](../../../Picture/week10/day4.2.png)
+
 ---
