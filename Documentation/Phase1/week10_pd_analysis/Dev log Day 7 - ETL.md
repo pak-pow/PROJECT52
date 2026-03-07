@@ -31,4 +31,6 @@ Code is only as good as its documentation. I finalized the project by writing a 
 ## 3. The Output
 Week 10 is officially complete. The Python Data Analysis Script is a fully automated, documented, and modular data pipeline.
 
+![Day7](../../../Picture/week10/day7.png)
+
 ---
