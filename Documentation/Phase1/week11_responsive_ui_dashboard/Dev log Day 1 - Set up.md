@@ -67,4 +67,7 @@ A semantic HTML5 structure was used to outline the major regions:
 
 The dashboard skeleton is successfully scaffolded. The interface now features a fixed, dark-themed sidebar locked to the left, a light header spanning the top right, and a scrolling main content area. This provides a mathematically sound, robust container ready to house the Flexbox-driven metric cards in the upcoming sessions.
 
+![Day1](../../../Picture/week11/day1.png)
+
+
 ---
