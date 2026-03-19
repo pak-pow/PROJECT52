@@ -32,5 +32,11 @@ To eliminate the final point of friction, I applied `self.display.focus_set()` a
 ## 3. The Output & Result
 The Python GUI Calculator is officially production-ready. The application features a programmatic UI, robust string-math parsing, error handling, and complete hardware keyboard integration. Phase 1 of the development journey is successfully concluded.
 
+![Day5.1](../../../Picture/week12/day5.1.png)
+
+![Day5.2](../../../Picture/week12/day5.2.png)
+
+![Day5.3](../../../Picture/week12/day5.3.png)
+
 ---
 
