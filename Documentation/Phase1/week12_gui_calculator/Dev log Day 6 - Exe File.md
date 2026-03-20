@@ -28,4 +28,6 @@ To ensure a premium software experience, I executed the build using specific com
 ## 3. The Output & Result
 The compilation was a complete success. The application was exported to the local `dist` directory as a fully functional, self-contained executable. It runs natively on the host operating system entirely independent of VS Code or an explicit Python installation.
 
+![Day6](../../../Picture/week12/day6.png)
+
 ---
