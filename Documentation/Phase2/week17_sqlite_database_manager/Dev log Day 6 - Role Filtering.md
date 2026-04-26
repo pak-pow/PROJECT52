@@ -37,9 +37,7 @@ The monolithic rendering function was split into three distinct, specialized met
 - Extracted inline HTML styles from the new filter controls into strict CSS classes (`.filter-container`, `.search-input`, `.role-filter`).
 - Applied consistent `:focus` state variables to the dropdown to match the overarching design system.
 
-![Day6.1](../../../Picture/week17/day6.1.png)
 
-![Day6.2](../../../Picture/week17/day6.2.png)
 
 ![Day6.3](../../../Picture/week17/day6.3.png)
 
