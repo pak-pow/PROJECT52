@@ -11,7 +11,7 @@ Tags:
   - "[[Dev Log]]"
 ---
 
-# 🚀 MASTER DEV LOG: WEEK 17, DAY 6 (Weekend Warrior)
+# 🚀 DEV LOG: WEEK 17, DAY 6 
 
 ## 1. Executive Summary
 

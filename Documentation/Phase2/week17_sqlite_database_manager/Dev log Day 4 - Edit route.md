@@ -10,7 +10,7 @@ Tags:
   - "[[REST API]]"
   - "[[Dev Log]]"
 ---
-# 🚀 MASTER DEV LOG: WEEK 17
+# 🚀 DEV LOG: WEEK 17
 
 ## 1. Executive Summary
 Day 4 focused on completing the full CRUD (Create, Read, Update, Delete) cycle by implementing the **Update** functionality. This required building a new `PUT` route on the backend and updating the frontend `UIController` to handle complex event delegation. Additionally, critical environment security protocols regarding CORS and local file execution were diagnosed and resolved.
