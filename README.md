@@ -106,7 +106,7 @@ graph LR
 | 39 | E-commerce Store v1 | Full Stack | Payments, Cart Logic | 10h |
 | 40 | Progressive Web App | Frontend | Service Workers, Offline | 8h |
 | 41 | GraphQL API Server (PulseGraph) | Backend | GraphQL, Schemas, DataLoaders | 8h |
-| 42 | Collaborative Editor | Full Stack | OT/CRDT, WebRTC | 10h |
+| 42 | Collaborative Editor (PulsePad) | Full Stack | Operational Transformation, WebSockets | 10h |
 | 43 | Video Streaming Platform | Full Stack | HLS, Video Processing | 10h |
 | 44 | ML Model API | Backend | Model Serving | 9h |
 | 45 | Mobile-First SaaS App | Full Stack | Responsive, Subscriptions | 10h |
