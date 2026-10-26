@@ -107,8 +107,8 @@ graph LR
 | 40 | Progressive Web App | Frontend | Service Workers, Offline | 8h |
 | 41 | GraphQL API Server (PulseGraph) | Backend | GraphQL, Schemas, DataLoaders | 8h |
 | 42 | Collaborative Editor (PulsePad) | Full Stack | Operational Transformation, WebSockets | 10h |
-| 43 | Video Streaming Platform | Full Stack | HLS, Video Processing | 10h |
-| 44 | ML Model API | Backend | Model Serving | 9h |
+| 43 | Video Streaming Platform (PulseStream) | Full Stack | RFC 7233 Range, ABR HLS, Transcoding | 10h |
+| 44 | ML Model API (PulseInfer) | Backend | Micro-Batching, Model Registry, Caching | 9h |
 | 45 | Mobile-First SaaS App | Full Stack | Responsive, Subscriptions | 10h |
 | 46 | OAuth Provider Service | Backend | OAuth 2.0, Security | 9h |
 | 47 | Microservices Arch. | Backend | Service Comm, Load Balancing | 10h |
