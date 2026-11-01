@@ -109,7 +109,7 @@ graph LR
 | 42 | Collaborative Editor (PulsePad) | Full Stack | Operational Transformation, WebSockets | 10h |
 | 43 | Video Streaming Platform (PulseStream) | Full Stack | RFC 7233 Range, ABR HLS, Transcoding | 10h |
 | 44 | ML Model API (PulseInfer) | Backend | Micro-Batching, Model Registry, Caching | 9h |
-| 45 | Mobile-First SaaS App | Full Stack | Responsive, Subscriptions | 10h |
+| 45 | Mobile-First SaaS (PulseSub) | Full Stack | Responsive, FSM Subscriptions, Webhooks | 10h |
 | 46 | OAuth Provider Service | Backend | OAuth 2.0, Security | 9h |
 | 47 | Microservices Arch. | Backend | Service Comm, Load Balancing | 10h |
 | 48 | Full-Featured Blog | Full Stack | Advanced SEO, Search | 10h |
