@@ -10,7 +10,7 @@ Tags:
   - "[[Chaos Engineering]]"
   - "[[Dev Log]]"
 ---
-# 📝 DEV LOG: WEEK 38 - DAY 6
+# DEV LOG: WEEK 38 - DAY 6
 
 **Core Objective:** Harden the multi-container topology against security vulnerabilities and infrastructure failures. Implement gateway-level defense-in-depth on Nginx (security headers, 1MB payload limits, and API rate limiting), build backend graceful degradation (handling database interruptions and cache outages with structured 503 states rather than server crashes), construct an automated chaos & resilience CLI runner (`test_resilience.py`), and expand the automated test suite with 8 security & resilience tests bringing total tests to 55 passing with 94.19% branch coverage.
 
@@ -68,7 +68,7 @@ graph TD
 
 ## 2. Technical Implementation Details
 
-### 📂 Modified & Created Files
+### Modified & Created Files
 - **`nginx/nginx.conf`**: Enhanced with security headers, 1MB body size cap, and rate-limiting zone on `/api/`.
 - **`backend/app/routes/task_routes.py`**: Added payload validation, content-type checks, database failure 503 handlers, and cache outage fallbacks.
 - **`backend/scripts/test_resilience.py`**: Standalone resilience and security probe CLI utility.
