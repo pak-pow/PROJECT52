@@ -22,7 +22,7 @@ Placing an order is the most critical event in an e-commerce platform. If an ord
 
 Today, we built a robust order processing engine to eliminate these issues:
 1. **Atomic Inventory Reservation:** When a customer clicks checkout, the store decrements product stock immediately inside a database transaction. If any item is out of stock, the entire checkout aborts cleanly.
-2. **Order Lifecycle State Machine:** Orders strictly follow defined status transitions (`pending` ➔ `processing` ➔ `paid` ➔ `shipped`). If payment fails or is cancelled, reserved stock is automatically returned to inventory.
+2. **Order Lifecycle State Machine:** Orders strictly follow defined status transitions (`pending` -> `processing` -> `paid` -> `shipped`). If payment fails or is cancelled, reserved stock is automatically returned to inventory.
 3. **Stripe Payment Gateway Adapter:** We integrated a payment adapter that creates Stripe-compatible `PaymentIntent` records and supports testing multiple scenarios: successful payment, card decline, and insufficient funds.
 4. **Idempotent Webhook Processing:** Stripe delivers webhooks when payments succeed. We record every incoming `event_id` in a database table. If Stripe retries a webhook, the store acknowledges it without reprocessing the order.
 
