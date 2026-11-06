@@ -10,7 +10,7 @@ Tags:
   - "[[Testing]]"
   - "[[Dev Log]]"
 ---
-# 📝 DEV LOG: WEEK 38 - DAY 2
+# DEV LOG: WEEK 38 - DAY 2
 
 **Core Objective:** Package our backend into a secure, multi-stage production Docker image (`python:3.10-slim`), drop container privileges to an unprivileged non-root user (`appuser`), configure native container health checks, and optimize build context with `.dockerignore`.
 
@@ -50,21 +50,21 @@ graph TD
 
 ## 2. Key Modules & Files Built Today
 
-### 🐳 Production Multi-Stage Dockerfile (`backend/Dockerfile`)
+### Production Multi-Stage Dockerfile (`backend/Dockerfile`)
 - **Stage 1 (Builder)**: Upgrades pip, downloads and packages all dependencies and transitive wheels into `/build/wheels`.
 - **Stage 2 (Runtime)**: Installs runtime libraries (`libpq5`, `curl`), installs the pre-compiled wheels, and immediately purges wheel artifacts.
 - **Unprivileged User**: Drops privileges from root to `appuser` (UID 1001, GID 1001).
 - **Production Server**: Runs Gunicorn WSGI with 2 worker processes and 4 threads on port `5000`.
 - **Live Verification**: Built the image (`docker-pulse-api:day2`), ran a test container, verified `uid=1001(appuser)`, probed `/api/v1/health` returning 200, and stopped the container cleanly.
 
-### 🚫 Optimized Build Exclusions (`backend/.dockerignore` & `.dockerignore`)
+### Optimized Build Exclusions (`backend/.dockerignore` & `.dockerignore`)
 - Blocks heavy directories from entering the Docker build context: `.git/`, `.venv/`, `__pycache__/`, `.pytest_cache/`, `htmlcov/`, test databases, and local `.env` secrets.
 - Drastically speeds up build times and prevents secret leaks.
 
-### 📄 Environment Template (`.env.example`)
+### Environment Template (`.env.example`)
 - Documented all configuration keys for multi-container orchestration: `FLASK_ENV`, `DATABASE_URL` for PostgreSQL, `REDIS_URL` for Redis, and reverse proxy ports.
 
-### 🧪 Automated Dockerfile Standards Suite (`tests/test_dockerfile_standards.py`)
+### Automated Dockerfile Standards Suite (`tests/test_dockerfile_standards.py`)
 - Added 6 automated tests validating:
   - Multi-stage build syntax (`AS builder` and `AS runtime`).
   - Non-root user creation and `USER appuser` directive.
