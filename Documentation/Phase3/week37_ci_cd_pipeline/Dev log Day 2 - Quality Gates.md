@@ -11,7 +11,7 @@ Tags:
   - "[[Testing]]"
   - "[[Dev Log]]"
 ---
-# 📝 DEV LOG: WEEK 37 - DAY 2
+# DEV LOG: WEEK 37 - DAY 2
 **Core Objective:** Establish multi-stage quality gates and security audits for the backend codebase. Configure Flake8, Black, isort, Bandit, and strict 90%+ branch test coverage enforcement, engineer a unified local quality runner CLI (`run_quality_checks.py`), and harmonize all backend code to meet strict enterprise standards.
 
 ---
@@ -48,24 +48,24 @@ graph TD
 
 ## 2. Simple Breakdown of What Was Built
 
-### 📏 Linting & Formatting Standards (`.flake8`, `pyproject.toml`)
+### Linting & Formatting Standards (`.flake8`, `pyproject.toml`)
 - Configured `.flake8` with `max-line-length = 88` and black compatibility ignores (`E203`, `W503`).
 - Configured `pyproject.toml` with tool settings for `black`, `isort`, and `bandit`.
 - Harmonized all backend Python files to adhere to 88-character limits without line-wrapping breaks.
 
-### 🛡️ Static Security Auditing (`bandit`)
+### ️ Static Security Auditing (`bandit`)
 - Set up automated scanning of `app/` checking for high and medium severity security risks (`-ll`).
 - Zero warnings across all database queries, environment parsers, and route handlers.
 
-### 📊 Strict Coverage Enforcement (`.coveragerc`)
+### Strict Coverage Enforcement (`.coveragerc`)
 - Configured branch coverage measurement.
 - Configured `fail_under = 90.0`. If total coverage drops even to 89.9%, the test command exits with code 2 to fail the pipeline.
 
-### 🚀 Quality Runner CLI (`scripts/run_quality_checks.py`)
+### Quality Runner CLI (`scripts/run_quality_checks.py`)
 - Single command (`python scripts/run_quality_checks.py`) executing all 4 gates sequentially.
 - Cross-platform Windows console encoding handling with colored status indicators and timing summaries.
 
-### 🧪 Automated Quality Gate Tests (`tests/test_quality_gates.py`)
+### Automated Quality Gate Tests (`tests/test_quality_gates.py`)
 - 6 tests asserting configuration file existence, programmatically running Flake8 and Bandit on `app/`, and using Python's `ast` module to verify that dangerous functions like `eval()` and `exec()` never exist in application code.
 
 ---
