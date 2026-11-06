@@ -10,7 +10,7 @@ Tags:
   - "[[Testing]]"
   - "[[Dev Log]]"
 ---
-# 📝 DEV LOG: WEEK 37 - DAY 3
+# DEV LOG: WEEK 37 - DAY 3
 
 **Core Objective:** Design and implement production GitHub Actions workflows (`ci.yml` and `cd.yml`), configure a parallel multi-version Python test matrix (3.10, 3.11, 3.12), establish post-deployment smoke test probes (`smoke_test.py`), and automate staging-to-production release gating.
 
@@ -42,22 +42,22 @@ graph TD
 
 ## 2. Simple Breakdown of What Was Built
 
-### 🤖 CI Workflow (`.github/workflows/ci.yml`)
+### CI Workflow (`.github/workflows/ci.yml`)
 - **Triggers**: On push or pull request to `main` and `develop`.
 - **Quality Gates**: Flake8, Black, isort, and Bandit security scans.
 - **Python Version Matrix**: Parallel runners on Python 3.10, 3.11, and 3.12 with pip caching and XML test coverage report uploads.
 - **Artifact Packaging**: Bundles code into an immutable archive (`app-release-bundle.tar.gz`) uploaded to GitHub Artifacts.
 
-### 🚀 CD Workflow (`.github/workflows/cd.yml`)
+### CD Workflow (`.github/workflows/cd.yml`)
 - **Triggers**: On merge to `main` or release tag (`v*.*.*`).
 - **Two-Stage Release**: First deploys to Staging, then promotes to Production only if staging smoke tests pass (`needs: [deploy-staging]`).
 - **Audit Logging**: Pushes deployment metadata (commit hash, version, environment) to our deployment database via REST API.
 
-### 🩺 Smoke Test Probe (`backend/scripts/smoke_test.py`)
+### Smoke Test Probe (`backend/scripts/smoke_test.py`)
 - Zero-dependency script using standard library `urllib`.
 - Verifies server readiness, status codes, JSON payload integrity, and response latencies (<1000ms).
 
-### 🧪 Automated Workflow Tests (`backend/tests/test_workflows.py`)
+### Automated Workflow Tests (`backend/tests/test_workflows.py`)
 - 4 unit tests asserting YAML syntax correctness, trigger events, matrix strategies, and graceful error handling.
 
 ---
