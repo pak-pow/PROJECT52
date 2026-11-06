@@ -10,7 +10,7 @@ Tags:
   - "[[Observability]]"
   - "[[Dev Log]]"
 ---
-# 📝 DEV LOG: WEEK 38 - DAY 5
+# DEV LOG: WEEK 38 - DAY 5
 
 **Core Objective:** Design and implement a responsive, lightweight, standalone vanilla ES6 operations dashboard (**Docker Pulse**) to monitor the multi-container stack in real time. The frontend interfaces with the Nginx reverse proxy to visualize service topology, poll database and cache latencies, execute comparative query benchmarks (PostgreSQL 16 relational storage vs. Redis 7 in-memory cache), and provide full task management controls with live cache hit/miss feedback.
 
@@ -69,7 +69,7 @@ graph TD
 
 ## 2. Technical Implementation Details
 
-### 📂 Modular Frontend Architecture (`week38_containerized_app/frontend`)
+### Modular Frontend Architecture (`week38_containerized_app/frontend`)
 - **`public/index.html`**: Clean, accessible HTML5 document defining semantic application layout, navigation header, topology grid wrapper, benchmark container, and task management sections.
 - **`src/assets/base.css`**: CSS custom property design tokens (dark theme palette, spacing scales, typography, and responsive grid layouts).
 - **`src/assets/pulse.css`**: Application-specific styling for topology cards, status beacons, benchmark comparison progress bars, task forms, table components, and floating toast notifications.
@@ -86,7 +86,7 @@ graph TD
 
 ## 3. Verification & Quality Gates
 
-### 🛡️ Automated Test Suite (`backend/tests/test_compose_and_nginx.py`)
+### ️ Automated Test Suite (`backend/tests/test_compose_and_nginx.py`)
 - Added structural tests asserting that all modular frontend files, stylesheets, and scripts exist and contain required logic.
 - Executed full quality check suite (`run_quality_checks.py`):
   - `flake8`: PASSED (0 errors, line-length compliant)
