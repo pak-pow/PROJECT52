@@ -10,7 +10,7 @@ Tags:
   - "[[Testing]]"
   - "[[Dev Log]]"
 ---
-# 📝 DEV LOG: WEEK 37 - DAY 5
+# DEV LOG: WEEK 37 - DAY 5
 
 **Core Objective:** Build a production-grade, zero-dependency interactive web dashboard (`frontend/`) connecting directly to our Flask CI/CD backend (`deployment_routes.py`), rendering real-time 5-stage pipeline steppers, an ANSI-styled terminal execution log, interactive status badges, deployment audit tables, and seamless offline demo simulation.
 
@@ -19,7 +19,7 @@ Tags:
 ## 1. The Big Picture & Simple Explanation
 
 In Day 3 and Day 4, we built automated GitHub Actions workflows and a local CLI pipeline orchestrator. While terminal CLIs are great for automation and CI environments, engineering teams need a visual, central mission control:
-1. **Visual Pipeline Stepper**: An interactive 5-stage track (`Lint` ➔ `Security` ➔ `Test & Coverage` ➔ `Package Bundle` ➔ `Deploy & Smoke`) with animated progress indicators, real-time pulse states, and pass/fail icons.
+1. **Visual Pipeline Stepper**: An interactive 5-stage track (`Lint` -> `Security` -> `Test & Coverage` -> `Package Bundle` -> `Deploy & Smoke`) with animated progress indicators, real-time pulse states, and pass/fail icons.
 2. **Streaming Execution Terminal**: A developer console that streams stdout/stderr stage logs in real-time, complete with stage filter tabs (`All`, `Lint`, `Security`, etc.), line timestamps, and autoscroll.
 3. **Interactive Badge Gallery**: Live previews of our zero-dependency SVG badges (`build: passing`, `coverage: 93.0%`, `deploy: staging`) with one-click copyable Markdown, HTML, and URL code blocks.
 4. **Dual-Mode Architecture (Live API + Offline Demo Simulator)**: If the backend is running on `127.0.0.1:5000`, the dashboard triggers genuine local subprocess runs and fetches live data from SQLite. If opened standalone without the backend, it automatically switches to a graceful offline demo simulator mode with a clear notice banner.
