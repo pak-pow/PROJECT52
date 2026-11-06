@@ -16,8 +16,8 @@ The curriculum is divided into three distinct phases, each building upon the com
 
 ```mermaid
 graph LR
-    A[🌱 Weeks 1-12<br/>Foundation] -->|Build Skills| B[🔨 Weeks 13-36<br/>Integration]
-    B -->|Master Stack| C[🚀 Weeks 37-52<br/>Production]
+    A[Weeks 1-12<br/>Foundation] -->|Build Skills| B[Weeks 13-36<br/>Integration]
+    B -->|Master Stack| C[Weeks 37-52<br/>Production]
     
     style A fill:#1e1e2f,stroke:#61dafb,stroke-width:2px,color:#ffffff
     style B fill:#2c2c3e,stroke:#ff6f61,stroke-width:2px,color:#ffffff
@@ -37,7 +37,7 @@ graph LR
 
 ## Master Schedule: Weeks 1-52
 
-### 📘 Phase 1: Foundation
+### Phase 1: Foundation
 
 **Duration:** January - March 2026
 
@@ -60,7 +60,7 @@ graph LR
 
 -----
 
-### 🔨 Phase 2: Integration
+### Phase 2: Integration
 
 **Duration:** April - September 2026
 
@@ -95,7 +95,7 @@ graph LR
 
 -----
 
-### 🚀 Phase 3: Production
+### Phase 3: Production
 
 **Duration:** October - December 2026
 
