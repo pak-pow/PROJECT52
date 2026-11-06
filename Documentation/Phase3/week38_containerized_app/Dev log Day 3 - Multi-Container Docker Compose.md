@@ -11,7 +11,7 @@ Tags:
   - "[[Redis]]"
   - "[[Dev Log]]"
 ---
-# 📝 DEV LOG: WEEK 38 - DAY 3
+# DEV LOG: WEEK 38 - DAY 3
 
 **Core Objective:** Wire up a complete 4-tier microservices stack using Docker Compose—orchestrating an Nginx reverse proxy gateway, Flask REST API, PostgreSQL 16 relational database, and Redis 7 cache with health-dependent startup order, named volume persistence, and an isolated bridge network.
 
@@ -49,22 +49,22 @@ graph TD
 
 ## 2. Key Modules & Files Built Today
 
-### 🌐 Nginx Gateway & Reverse Proxy (`nginx/nginx.conf`)
+### Nginx Gateway & Reverse Proxy (`nginx/nginx.conf`)
 - Configured an enterprise-grade Nginx ingress on port 80 (mapped to host `8080`).
 - **Reverse Proxy Routing**: Proxies all `/api/` traffic to the upstream `flask_api` (`api:5000`) while preserving client IP headers (`X-Real-IP`, `X-Forwarded-For`).
 - **Gzip Compression**: Compresses text, JSON, CSS, and SVG payloads on the fly for low latency.
 - **Direct Liveness Probe**: Provides an instant `/healthz` endpoint (returning `200 OK`) so orchestrators can check proxy health without touching the backend.
 
-### 💻 Operations Hub Frontend (`frontend/public/index.html`)
+### Operations Hub Frontend (`frontend/public/index.html`)
 - Built a standalone dark-themed operations dashboard with zero external CDN dependencies.
 - Displays visual service cards for Nginx, Flask, PostgreSQL, and Redis with live direct-action test links.
 - Embedded all CSS styles locally to ensure 100% offline compliance and privacy.
 
-### 🔄 Database Connection Retry Resilience (`backend/app/db.py`)
+### Database Connection Retry Resilience (`backend/app/db.py`)
 - Added retry resilience and delay handling (`retries=5, delay=1.0s`) to `init_db`.
 - Protects the application from startup race conditions during container bootstrapping if Postgres takes an extra second to initialize the database cluster.
 
-### 🐳 Docker Compose Orchestration (`docker-compose.yml`)
+### Docker Compose Orchestration (`docker-compose.yml`)
 - Declared all 4 microservices with explicit health checks:
   - **`db`**: PostgreSQL 16 Alpine with `pg_isready` probe and persistent volume.
   - **`cache`**: Redis 7 Alpine with AOF persistence and `redis-cli ping` probe.
@@ -72,7 +72,7 @@ graph TD
   - **`web`**: Nginx Alpine reverse proxy waiting on `api` health.
 - Tested live: All 4 containers spun up cleanly and passed health probes.
 
-### 🧪 Automated Compose & Nginx Test Suite (`backend/tests/test_compose_and_nginx.py`)
+### Automated Compose & Nginx Test Suite (`backend/tests/test_compose_and_nginx.py`)
 - Added 4 automated unit tests verifying:
   - Compose file definitions, services, healthcheck rules, and volume declarations.
   - Nginx configuration directives, upstream blocks, and gzip settings.
