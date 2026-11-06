@@ -10,7 +10,7 @@ Tags:
   - "[[Security]]"
   - "[[Dev Log]]"
 ---
-# 📝 DEV LOG: WEEK 38 - DAY 4
+# DEV LOG: WEEK 38 - DAY 4
 
 **Core Objective:** Guarantee zero data loss across container teardowns using named volumes, implement environment profile overlays (`docker-compose.override.yml` for rapid local hot-reloading vs. `docker-compose.prod.yml` for hardened resource-constrained production), build automated schema migration & seeding utilities, and engineer secure secret resolution supporting Docker Secrets and `*_FILE` paths.
 
@@ -54,34 +54,34 @@ graph TD
 
 ## 2. Key Modules & Files Built Today
 
-### 🛠️ Development & Production Overlays (`docker-compose.override.yml` & `docker-compose.prod.yml`)
+### ️ Development & Production Overlays (`docker-compose.override.yml` & `docker-compose.prod.yml`)
 - **`docker-compose.override.yml`**: Automatically applied during `docker compose up`. Mounts `./backend:/app` for instant hot-reloading on code changes, enables `FLASK_ENV=development`, and exposes ports `5000`, `5432`, and `6379` for local tooling.
 - **`docker-compose.prod.yml`**: Enforces container resource quotas (Postgres: 1.0 CPU / 512MB RAM; API: 1.0 CPU / 512MB RAM; Redis/Nginx: 0.5 CPU / 256MB RAM), sets `restart: always`, configures `json-file` log rotation with 10MB limits, and injects production secrets via Docker Secrets.
 
-### 🔐 Zero-Leak Secrets Resolver (`backend/app/config/settings.py`)
+### Zero-Leak Secrets Resolver (`backend/app/config/settings.py`)
 - Created `get_secret(key, default)` helper:
   - First checks `<KEY>_FILE` environment paths.
   - Next checks `/run/secrets/<key>` for Docker Secrets compatibility.
   - Falls back to `os.getenv(key, default)`.
 - Updated `BaseConfig` and `ProductionConfig` to resolve `SECRET_KEY` and credentials through this pipeline.
 
-### 🗄️ Database Migration & Seeding Utility (`backend/scripts/init_db.py`)
+### ️ Database Migration & Seeding Utility (`backend/scripts/init_db.py`)
 - Automated CLI script (`python scripts/init_db.py`):
   - Creates the `schema_migrations` tracking table.
   - Executes base schema idempotently (`CREATE TABLE IF NOT EXISTS`).
   - Records baseline migration `v1.0.0_baseline`.
   - Automatically seeds demo tasks (`Verify Multi-Container Orchestration`, `Configure Named Volume Persistence`, `Enforce Enterprise Quality Gates`) if the database is fresh.
 
-### 🧪 Durability & Canary Verification Utility (`backend/scripts/verify_persistence.py`)
+### Durability & Canary Verification Utility (`backend/scripts/verify_persistence.py`)
 - Diagnostic CLI script that writes a unique UUID canary record to PostgreSQL and Redis (`write_canary`) and checks its survival across reconnections or container restarts (`verify_canary`).
 
-### 🎨 Vanilla Modular Frontend Architecture (`frontend/src/assets/` & `frontend/public/`)
+### Vanilla Modular Frontend Architecture (`frontend/src/assets/` & `frontend/public/`)
 - Adhered strictly to the Project 52 modular standard:
   - Extracted all styles out of `public/index.html` into dedicated stylesheets (`src/assets/base.css` and `src/assets/pulse.css`).
   - Added modular JavaScript application entrypoint (`src/main.js`) with third-person event telemetry.
   - Configured Nginx static asset routing to serve `/src/` assets with caching headers and public HTML entry points.
 
-### 🛡️ Automated Test Suite (`backend/tests/test_persistence_and_secrets.py`)
+### ️ Automated Test Suite (`backend/tests/test_persistence_and_secrets.py`)
 - Added 10 new comprehensive unit tests covering:
   - Direct environment secret retrieval.
   - Secret file path (`_FILE`) resolution.
