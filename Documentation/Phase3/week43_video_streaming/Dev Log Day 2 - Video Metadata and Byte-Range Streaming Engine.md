@@ -49,9 +49,11 @@ To power this without loading entire hundred-megabyte video files into RAM, the 
 
 ---
 
-## 2. Media Inspector Service (`MediaInspector`)
+## 2. Key Engineering Implementations
 
-The [`MediaInspector`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week43_video_streaming/backend/app/services/media_inspector.py) service extracts technical media characteristics from uploaded videos:
+### Media Inspector Service (Hybrid ffprobe and Binary ISO-BMFF Parser)
+
+The `MediaInspector` service extracts technical media characteristics from uploaded videos:
 - **Hybrid Inspection Architecture:**
   - Dynamic discovery checks for host `ffprobe` / `ffmpeg` utilities.
   - When `ffprobe` is present, it executes JSON stream inspection capturing exact codec profiles, fractional frame rates (`r_frame_rate`), and bitrates.
@@ -64,11 +66,9 @@ The [`MediaInspector`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PR
   - Evaluates host FFmpeg frame capture (`ffmpeg -ss 00:00:01 -vframes 1`).
   - Fallback renders a styled dark slate video poster using Pillow (PIL), including gradient depth, bounding box trim, centered play iconography, and high-contrast typography.
 
----
+### RFC 7233 Byte-Range Streaming Engine
 
-## 3. RFC 7233 Streaming Engine (`RangeStreamingEngine`)
-
-The [`RangeStreamingEngine`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week43_video_streaming/backend/app/services/streaming_service.py) provides production-grade HTTP range request processing:
+The `RangeStreamingEngine` provides production-grade HTTP range request processing:
 - **Range Header Grammar Parsing:**
   - `bytes=0-1048575`: Slices exact byte intervals.
   - `bytes=1048576-`: Slices from start offset through EOF (`file_size - 1`).
@@ -77,6 +77,9 @@ The [`RangeStreamingEngine`](file:///c:/Users/User/Documents/Github/Personal/VSC
   - Inverted or negative ranges (`start > end` or `start < 0`) trigger HTTP `416 Range Not Satisfiable` with header `Content-Range: bytes */{file_size}`.
   - Requests exceeding total file length are rejected cleanly.
   - End bounds exceeding file size are clamped to `file_size - 1`.
+
+### Low-Memory Generator Streaming & Caching Directives
+
 - **Low-Memory Chunked Streaming:**
   - Leverages Python generator streaming (`yield chunk`) with a configurable $64\text{ KB}$ chunk buffer.
   - Large media files are never buffered entirely in application RAM.
@@ -84,32 +87,35 @@ The [`RangeStreamingEngine`](file:///c:/Users/User/Documents/Github/Personal/VSC
 
 ---
 
-## 4. Test Verification and Quality Gates
+## 3. Verification & Quality Gates Report
 
-The test suite was expanded with comprehensive coverage across metadata inspection and range streaming edge cases:
-- [`test_media_inspector.py`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week43_video_streaming/backend/tests/test_media_inspector.py):
-  - Missing and corrupt file fallback handling.
-  - Binary ISO BMFF MP4 inspection of duration, track dimensions, and codecs.
-  - Mocked `ffprobe` JSON parsing.
-  - Pillow and FFmpeg thumbnail poster generation.
-- [`test_range_streaming.py`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week43_video_streaming/backend/tests/test_range_streaming.py):
-  - Parsing permutations (explicit, open-ended, suffix, clamped, and invalid ranges).
-  - HTTP 200 full file responses for un-ranged requests.
-  - HTTP 206 Partial Content responses verifying exact byte payload matching.
-  - HTTP 416 Range Not Satisfiable responses on boundary overruns.
-- **Quality Gates Status:**
-  - **Pytest:** 29 tests passed in 1.09s with **96% code coverage**.
-  - **Flake8:** 0 lint violations (88-char limit).
-  - **Black:** 100% formatted.
-  - **isort:** Verified with Black profile.
-  - **Bandit:** 0 security vulnerabilities identified.
+The test suite verified metadata inspection and range streaming edge cases across all five quality gates:
+
+| Quality Gate | Tool | Target / Threshold | Result | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| Linting | Flake8 | 0 violations (88-char limit) | 0 warnings / 0 errors | PASSED |
+| Code Formatting | Black | PEP 8 / 88 columns | 100% compliant | PASSED |
+| Import Sorting | isort | Black profile compatibility | 100% compliant | PASSED |
+| Security Scanning | Bandit | Zero medium/high vulnerabilities | 0 issues found | PASSED |
+| Test Coverage | Pytest | >= 90% statement coverage | 29/29 passed (96% coverage) | PASSED |
+
+### Test Suite Highlights
+- `test_media_inspector.py`: Missing/corrupt file handling, binary ISO BMFF atom parsing, mock `ffprobe` JSON parsing, and thumbnail poster generation.
+- `test_range_streaming.py`: Range permutations (explicit, open-ended, suffix, clamped, invalid), HTTP 200 full-file streaming, HTTP 206 byte matching, and HTTP 416 overrun rejection.
 
 ---
 
-## 5. Next Steps for Day 3
+## 4. Key Engineering Insights & Decisions
 
-Day 3 will implement:
-1. The `HLSPackager` service generating HLS master manifests (`master.m3u8`) with `#EXT-X-STREAM-INF` quality definitions.
-2. Variant playlist generator (`stream_720p.m3u8`) and `.ts` chunking segmenter.
-3. Multi-profile transcode coordinator preparing standard renditions (1080p, 720p, 480p, 360p).
-4. Unit tests verifying HLS playlist syntax, `#EXTINF` tags, and segment continuity.
+- **Pure-Python ISO-BMFF Atom Parser Fallback:** Rather than treating FFmpeg as a hard prerequisite that would break testing or deployment in minimal environments, the embedded pure-Python MP4 box parser reads `moov`, `mvhd`, and `tkhd` atoms directly to extract duration and dimensions.
+- **Fixed 64 KB Chunk Generator:** Yielding 64 KB slices over WSGI responses prevents memory spikes under high concurrent scrub traffic, keeping backend memory usage flat regardless of the size of the underlying video file.
+- **Suffix Range Slicing Arithmetic:** RFC 7233 suffix ranges (`bytes=-N`) specify bytes relative to the end of the file. Computing $start = \max(0, file\_size - N)$ ensures robust slicing even when requested suffix lengths exceed total file size.
+
+---
+
+## 5. Next Steps
+
+- Implement `HLSPackager` service generating HLS master manifests (`master.m3u8`) with `#EXT-X-STREAM-INF` quality definitions.
+- Build variant playlist generator (`stream_720p.m3u8`) and `.ts` chunking segmenter.
+- Construct multi-profile transcode coordinator preparing standard renditions (1080p, 720p, 480p, 360p).
+- Add unit tests verifying HLS playlist syntax, `#EXTINF` tags, and segment continuity.
