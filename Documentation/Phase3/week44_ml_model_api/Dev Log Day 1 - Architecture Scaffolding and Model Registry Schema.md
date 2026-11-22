@@ -62,50 +62,66 @@ In Day 1, we established the foundational layers for **PulseInfer**:
 
 ---
 
-## 2. Key Modules Implemented
+## 2. Key Engineering Implementations
 
-### 2.1 Configuration and SQLite WAL Connection Manager
-- [`settings.py`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week44_ml_model_api/backend/app/config/settings.py):
-  - Defines base, development, testing, and production environments.
-  - Declares inference constraints: `MAX_BATCH_SIZE=32`, `BATCH_TIMEOUT_MS=10.0`, `CACHE_MAX_SIZE=1000`, and `CACHE_TTL_SECONDS=300`.
-- [`connection.py`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week44_ml_model_api/backend/app/db/connection.py):
-  - Enables Write-Ahead Logging (`PRAGMA journal_mode = WAL`) and synchronous normal mode for concurrent read/write scaling.
-  - Enforces `PRAGMA foreign_keys = ON` and `PRAGMA busy_timeout = 5000`.
+### Configuration and SQLite WAL Connection Manager
 
-### 2.2 Data Access Objects (DAOs)
-- [`ModelDAO`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week44_ml_model_api/backend/app/models/model_entity.py): Manages model registration, domain categorization (`nlp`, `vision`, `tabular`), active version pointers, and cascading deletions.
-- [`ModelVersionDAO`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week44_ml_model_api/backend/app/models/model_version.py): Manages version lifecycle (`active`, `staging`, `archived`), artifact filesystem locations, and schema JSON definitions.
-- [`PredictionLogDAO`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week44_ml_model_api/backend/app/models/prediction_log.py): Records inference latency, batch sizing, cache hits, and computes aggregated metrics (average latency, cache hit ratio, error rate).
+- `settings.py` defines base, development, testing, and production environments with inference constraints: `MAX_BATCH_SIZE=32`, `BATCH_TIMEOUT_MS=10.0`, `CACHE_MAX_SIZE=1000`, and `CACHE_TTL_SECONDS=300`.
+- `connection.py` enables Write-Ahead Logging (`PRAGMA journal_mode = WAL`) and synchronous normal mode for concurrent read/write scaling, enforces `PRAGMA foreign_keys = ON` and `PRAGMA busy_timeout = 5000`.
 
-### 2.3 Storage Service and Seed Pipeline
-- [`StorageService`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week44_ml_model_api/backend/app/services/storage_service.py):
-  - Standardizes directory hierarchies for model version artifacts (`models_vault/<model_id>/<version>/`).
-  - Reports vault metrics including total models, artifact files, and storage utilization.
-- [`seed.py`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week44_ml_model_api/backend/data/seed.py):
-  - Idempotently registers 3 production domain models:
-    - `nlp-sentiment`: Subword vocabulary and Softmax classifier with weights.
-    - `vision-classifier`: 32x32 RGB tensor projection network with class score weights.
-    - `fraud-detector`: Regularized transaction risk model with feature weights and decision threshold.
+### Data Access Objects (DAOs)
 
-### 2.4 Frontend Workbench Shell
-- [`index.html`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week44_ml_model_api/frontend/public/index.html): Dark-themed single-page application with navigation tabs for the Inference Playground, Observability Dashboard, and Model Registry Explorer.
-- [`workbench.js`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week44_ml_model_api/frontend/src/ui/workbench.js): Dynamic input renderer adapting to selected model domain (text input for NLP, base64/tensor input for Vision, numerical sliders for Tabular).
-- [`dashboard.js`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week44_ml_model_api/frontend/src/ui/dashboard.js): Telemetry card grid and execution log table.
+- **`ModelDAO`:** Manages model registration, domain categorization (`nlp`, `vision`, `tabular`), active version pointers, and cascading deletions.
+- **`ModelVersionDAO`:** Manages version lifecycle (`active`, `staging`, `archived`), artifact filesystem locations, and schema JSON definitions.
+- **`PredictionLogDAO`:** Records inference latency, batch sizing, cache hits, and computes aggregated metrics (average latency, cache hit ratio, error rate).
+
+### Storage Service and Seed Pipeline
+
+- **`StorageService`:** Standardizes directory hierarchies for model version artifacts (`models_vault/<model_id>/<version>/`), reports vault metrics including total models, artifact files, and storage utilization.
+- **`seed.py`:** Idempotently registers 3 production domain models:
+  - `nlp-sentiment`: Subword vocabulary and Softmax classifier with weights.
+  - `vision-classifier`: 32x32 RGB tensor projection network with class score weights.
+  - `fraud-detector`: Regularized transaction risk model with feature weights and decision threshold.
+
+### Frontend Workbench Shell
+
+- `index.html`: Dark-themed single-page application with navigation tabs for the Inference Playground, Observability Dashboard, and Model Registry Explorer.
+- `workbench.js`: Dynamic input renderer adapting to selected model domain (text input for NLP, base64/tensor input for Vision, numerical sliders for Tabular).
+- `dashboard.js`: Telemetry card grid and execution log table.
 
 ---
 
-## 3. Test Verification & Quality Gates
+## 3. Verification & Quality Gates Report
 
-The test suite was established across 6 dedicated test modules:
+The test suite verified database configuration, DAO operations, and service initialization across all quality gates:
+
+| Quality Gate | Tool | Target / Threshold | Result | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| Linting | Flake8 | 0 violations (88-char limit) | 0 warnings / 0 errors | PASSED |
+| Code Formatting | Black | PEP 8 / 88 columns | 100% compliant | PASSED |
+| Import Sorting | isort | Black profile compatibility | 100% compliant | PASSED |
+| Security Scanning | Bandit | Zero medium/high vulnerabilities | 0 issues found | PASSED |
+| Test Coverage | Pytest | >= 90% statement coverage | 16/16 passed (98% coverage) | PASSED |
+
+### Test Modules
 - `test_db.py`: Environment configuration, foreign keys, WAL mode, memory databases, schema creation.
 - `test_models.py`: Full CRUD cycles for models, versions, and telemetry log metrics.
-- `test_health.py`: Health endpoint (`/api/health`) and static route verification (`/`, `/src/assets/base.css`, `/public/index.html`).
+- `test_health.py`: Health endpoint and static route verification.
 - `test_storage.py`: Storage vault layout, artifact path resolution, disk space accounting.
 - `test_seed.py`: Seed script verification and idempotency check.
 
-### Quality Gates Summary
-- **Flake8:** Passed with 0 violations (88 character line limit enforced).
-- **Black:** 100% formatted across all Python source and test files.
-- **isort:** All module imports formatted with `--profile black`.
-- **Bandit:** 0 security issues identified across the application codebase.
-- **Pytest:** 16 passed in 0.45s with 98% overall code coverage.
+---
+
+## 4. Key Engineering Insights & Decisions
+
+- **Slug-Based Model IDs Over Auto-Increment:** Using human-readable slugs (`nlp-sentiment`, `fraud-detector`) as primary keys enables deterministic API endpoint construction (`/api/models/nlp-sentiment/predict`) and clean vault path resolution without requiring integer-to-slug lookup joins.
+- **Schema JSON Declarations Per Version:** Storing input/output schemas as JSON within each `model_version` row allows different versions of the same model to declare different input shapes (e.g., v1 accepts 5 features, v2 accepts 7 features) without schema migration overhead.
+- **WAL Mode for Concurrent Reads During Inference:** SQLite WAL mode allows multiple concurrent readers (inference endpoints reading model weights) while a single writer logs prediction telemetry, preventing database locking under production request volumes.
+
+---
+
+## 5. Next Steps
+
+- Implement vectorized preprocessor pipeline adapting raw inputs to model-specific tensor shapes.
+- Build domain inference models (NLP Sentiment, Vision Classifier, Fraud Detector) with deterministic weight-based prediction.
+- Construct test suite validating preprocessing, feature extraction, and prediction output formats.
