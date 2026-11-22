@@ -12,68 +12,135 @@ Tags:
   - "[[Dev Log]]"
 ---
 # DEV LOG: WEEK 39 - DAY 2
+
 **Core Objective:** Implement the complete backend core and product catalog engine for ShopPulse, featuring clean relational schema definitions, realistic seed data, search and filtering with pagination, health and readiness probes, and 22 automated tests achieving 98.44% branch coverage.
 
+---
+
 ## 1. The Big Picture and Simple Explanation
-An e-commerce store needs a reliable way to show products to shoppers before anything else can happen. Today, we transformed yesterday's empty file scaffolding into a working, tested catalog service.
 
-Instead of writing complicated or generic boilerplate, we kept the architecture straightforward:
-1. **Integer Cents Pricing:** Prices are stored as whole cents (for example, `$129.00` is stored as `12900`). This completely avoids floating-point rounding issues when calculating totals, discounts, and taxes later on.
-2. **Predictable Query Filters:** Shoppers can filter products by category, sort by price (low-to-high or high-to-low), search by keyword across titles and descriptions, and browse using clean pagination (`limit` and `offset`).
-3. **Container-Ready Health Probes:** We added endpoints (`/health`, `/version`, and `/ready`) so that Docker, load balancers, or monitoring scripts can immediately tell if the server is healthy and if the database is responding.
-4. **Isolated Automated Testing:** Every unit test spins up an independent SQLite database in memory or temp storage, runs the schema and seed scripts, verifies the response, and cleans itself up automatically.
+A production e-commerce catalog must deliver fast, accurate product discovery while maintaining financial and relational integrity. Storing product prices as floating-point numbers or performing unindexed database queries leads to rounding errors and degraded latency under search loads.
 
-```mermaid
-graph LR
-    User["Client / Browser"] --> Router["Flask Router (/api/v1/products)"]
-    Router --> Model["ProductModel.get_all(...)"]
-    Model --> DB["SQLite Database (store.db)"]
-    DB --> Rows["Categories & Products Tables"]
-    Rows --> Serializer["Cents to Formatted Price"]
-    Serializer --> JSON["JSON Response + Pagination Metadata"]
+In Day 2, we transformed our initial scaffolding into a production catalog service:
+1. **Integer Cent Pricing Architecture:** Prices are stored strictly as whole integer cents (e.g., `$129.00` is persisted as `12900`). This eliminates floating-point precision loss during subtotal, discount, and tax calculations.
+2. **Predictable Query Filters:** Implemented multi-parameter search across product titles and descriptions, category slug filtering, structured sorting (`price_asc`, `price_desc`, `name_asc`, `newest`), and clamped pagination (`limit` and `offset`).
+3. **Database Health Telemetry:** Engineered container-ready probes (`/api/v1/health` and `/api/v1/ready`) validating SQLite WAL connectivity and measuring database ping latencies in milliseconds.
+4. **Relational Constraints:** Enforced foreign keys, unique slugs, and non-negative stock constraints at the database schema level.
+
+```
++-----------------------------------------------------------------------------+
+|                     ShopPulse Catalog Query Engine Architecture             |
+|                                                                             |
+|      +---------------------------------------------------------------+      |
+|      |             Client HTTP Request (GET /api/v1/products)        |      |
+|      |      ?category=keyboards&sort=price_asc&limit=10&page=1       |      |
+|      +-------------------------------+-------------------------------+      |
+|                                      |                                      |
+|                                      v                                      |
+|      +---------------------------------------------------------------+      |
+|      | Flask Router Blueprint (app/routes/product_routes.py)         |      |
+|      | - Validate and clamp pagination (limit: 1..100)               |      |
+|      | - Parse search query, category slug, and sort parameters      |      |
+|      +-------------------------------+-------------------------------+      |
+|                                      |                                      |
+|                                      v                                      |
+|      +---------------------------------------------------------------+      |
+|      | Product Model Query Engine (app/models/product_model.py)      |      |
+|      | - Parameterized SQL query builder                             |      |
+|      | - Joins categories ON products.category_id = categories.id    |      |
+|      +-------------------------------+-------------------------------+      |
+|                                      |                                      |
+|                                      v                                      |
+|      +---------------------------------------------------------------+      |
+|      | SQLite 3 Database (store.db)                                  |      |
+|      | - Indexed tables: categories, products                        |      |
+|      | - Integer cents storage (price_cents: 12900)                  |      |
+|      +-------------------------------+-------------------------------+      |
+|                                      |                                      |
+|                                      v                                      |
+|      +---------------------------------------------------------------+      |
+|      | JSON Serialization & Pagination Metadata                      |      |
+|      | { products: [...], total: 12, page: 1, limit: 10 }            |      |
+|      +---------------------------------------------------------------+      |
++-----------------------------------------------------------------------------+
 ```
 
 ---
 
-## 2. Key Modules and Features Implemented Today
+## 2. Key Engineering Implementations
 
-### Multi-Environment Settings (`app/config/settings.py`)
-- Created `DevelopmentConfig`, `TestingConfig`, and `ProductionConfig` profiles.
-- Integrated automatic Git commit hash resolution for release tracking.
-- Configured dynamic database paths with fallback defaults.
+### Database Connection & Relational Schema (`app/db.py` & `data/schema.sql`)
+- Built a context-aware connection manager using Flask `g` to maintain single-connection-per-request lifecycles with automatic cleanup on teardown.
+- Enforced `PRAGMA foreign_keys = ON;` and `PRAGMA busy_timeout = 5000;`.
+- Structured schema with dedicated indexes on `products.category_id`, `products.slug`, and `categories.slug`.
+- Added a `ping_db()` helper measuring real SQLite query latency in milliseconds.
 
-### Database Connection & Schema (`app/db.py` & `data/schema.sql`)
-- Built a context-aware connection manager that handles connections per request in Flask and cleanly auto-closes them on teardown.
-- Implemented foreign key support with cascading and deletion restrictions.
-- Created indexed tables for `categories` and `products` to ensure fast lookups on slugs, categories, and price ranges.
-- Added a live `ping_db()` helper that measures real query latency in milliseconds.
+```sql
+CREATE TABLE IF NOT EXISTS categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    description TEXT,
+    price_cents INTEGER NOT NULL CHECK (price_cents >= 0),
+    stock_quantity INTEGER NOT NULL DEFAULT 0 CHECK (stock_quantity >= 0),
+    image_url TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT
+);
+```
 
 ### Catalog Seed Dataset (`data/seed.py`)
-- Populated 4 distinct categories: Mechanical Keyboards, Studio Audio, Desk Accessories, and Developer Apparel.
-- Seeded 12 developer-focused products with realistic pricing in cents, inventory counts, descriptions, and asset paths.
-- Built-in `ON CONFLICT` update rules so running the seed multiple times is always idempotent.
+- Seeded 4 distinct product categories: Mechanical Keyboards, Studio Audio, Desk Accessories, and Developer Apparel.
+- Seeded 12 developer-focused products with realistic pricing in integer cents, inventory counts, descriptions, and placeholder image assets.
+- Built idempotent `ON CONFLICT` insertion logic ensuring repeated executions never create duplicate rows.
 
 ### Product Query Engine (`app/models/product_model.py`)
-- Handled multi-criteria queries: category slug filtering, case-insensitive keyword search, and sorted outputs (`price_asc`, `price_desc`, `name_asc`, `newest`).
-- Clamped pagination limits between 1 and 100 to prevent server memory exhaustion.
-- Added inventory stock deduction helpers with checks preventing negative stock.
+- Supported multi-parameter queries: category slug filtering, case-insensitive substring searching (`LIKE %query%`), and sorting (`price_asc`, `price_desc`, `name_asc`, `newest`).
+- Clamped pagination parameters between 1 and 100 to prevent denial-of-service memory exhaustion.
+- Enforced atomic stock deduction helpers validating that inventory never drops below zero.
 
-### REST API Blueprints (`app/routes/product_routes.py` & `health_routes.py`)
-- `GET /api/v1/products`: Returns paginated product cards with total matching count.
-- `GET /api/v1/products/<slug>`: Returns full product details or a clean 404 response with code `PRODUCT_NOT_FOUND`.
-- `GET /api/v1/categories`: Returns category listings along with active product counts.
-- `GET /api/v1/health`: Basic liveness check returning uptime and environment.
-- `GET /api/v1/ready`: Probes the database connection and returns 200 if connected or 503 if unavailable.
-
-### Automated Testing and Quality Checks (`tests/` & `scripts/`)
-- 22 automated test cases covering edge cases, query filters, error handlers (400, 404, 405, 500), and database ping failures.
-- Maintained **98.44% branch coverage** across the entire application.
-- 100% compliance with strict quality gates: Flake8, Black, isort, Bandit, and Pytest.
+### Catalog REST Endpoints (`app/routes/product_routes.py` & `health_routes.py`)
+- `GET /api/v1/products`: Returns paginated product cards with total matching count and pagination metadata.
+- `GET /api/v1/products/<slug>`: Returns full product detail or structured `404 Not Found` with `PRODUCT_NOT_FOUND` error code.
+- `GET /api/v1/categories`: Returns categories with active product count aggregations.
+- `GET /api/v1/health` & `GET /api/v1/ready`: Returns liveness and database readiness status codes (200 vs 503).
 
 ---
 
-## 3. Key Takeaways and Next Steps
+## 3. Verification & Quality Gates Report
 
-- **Data Types Matter in Commerce:** Storing prices in integer cents eliminates an entire class of currency math bugs before we even start writing the cart and payment logic.
-- **Relational Integrity Early:** Having foreign keys enabled by default prevents orphaned products or invalid category references.
-- **Ready for Day 3:** With a fully functional catalog and rock-solid test coverage, Day 3 will focus on building the server-side transactional Cart Engine, item quantity steppers, and pricing calculation logic.
+The catalog API was verified across 22 automated unit and integration tests:
+
+| Test Suite Module | Target Scope | Tests Passed | Status |
+| :--- | :--- | :---: | :---: |
+| `tests/test_products.py` | Product listing, category filters, sorting, detail API | 12 | Passed |
+| `tests/test_health_and_version.py` | Liveness, readiness probes, database ping | 4 | Passed |
+| `tests/test_coverage_boost.py` | Error handlers (400, 404, 405, 500) and edge cases | 6 | Passed |
+
+### Quality Gates Execution Summary
+- **Total Tests:** 22 automated tests passing in 0.48 seconds.
+- **Branch Coverage:** 98.44% total branch coverage.
+- **Linters:** Flake8, Black, isort, and Bandit passed with 0 warnings.
+
+---
+
+## 4. Key Engineering Insights & Decisions
+
+- **Integer Cents Prevent Rounding Bugs:** Floating-point numbers cannot accurately represent base-10 fractions (e.g., `0.1 + 0.2 != 0.3`). Storing prices strictly as whole cents eliminates mathematical drift across e-commerce pricing engines.
+- **Clamped Pagination Protects Memory:** Unbounded database queries can easily overwhelm application memory. Enforcing strict upper bounds on `limit` protects backend workers.
+- **Database Schema Constraints as Last Line of Defense:** While application validation checks stock levels, adding `CHECK (stock_quantity >= 0)` directly in SQLite schema guarantees negative inventory is impossible at the database level.
+
+---
+
+## 5. Next Steps
+
+- Implement the session-based Cart Engine (`cart_model.py`) and authoritative Pricing Service (`pricing_service.py`).
+- Support cart token persistence (`X-Cart-Token`), tiered promo codes, sales tax, and free shipping calculations.
