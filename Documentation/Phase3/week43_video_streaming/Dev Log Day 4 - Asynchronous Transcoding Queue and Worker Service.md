@@ -50,21 +50,19 @@ To prevent this, production media architectures decouple **ingestion** from **pr
 
 ---
 
-## 2. Transcoding Queue Service Architecture
+## 2. Key Engineering Implementations
 
-The [`TranscodingQueue`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week43_video_streaming/backend/app/services/transcoding_service.py#L173-L228) acts as a thread-safe facade orchestrating background job registration and worker coordination:
+### Transcoding Queue Service Architecture
 
+The `TranscodingQueue` acts as a thread-safe facade orchestrating background job registration and worker coordination:
 - **Enqueueing:** `enqueue(video_id)` creates a database entry in `transcoding_jobs` with status `queued` and progress `0%`, signaling the background worker.
 - **Status Queries:** Provides `get_job_status(job_id)` and `get_job_for_video(video_id)` for polling endpoints.
 - **Active Job Inspection:** `list_active_jobs()` aggregates all currently queued and in-flight tasks for system monitoring.
 - **Deterministic Direct Execution:** `process_single(job_id)` executes a task synchronously, ensuring fast and isolated execution in unit test suites without requiring background threads.
 
----
+### Worker Daemon and Four-Stage Lifecycle State Machine
 
-## 3. Worker Daemon and Lifecycle State Machine
-
-The [`TranscodingWorker`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week43_video_streaming/backend/app/services/transcoding_service.py#L18-L170) runs in a background daemon thread controlled by a `threading.Event` shutdown hook:
-
+The `TranscodingWorker` runs in a background daemon thread controlled by a `threading.Event` shutdown hook:
 - **Stage 1 - Media Inspection (15%):**
   - Status transitions to `processing`, stage set to `inspecting`.
   - Invokes `MediaInspector.inspect(raw_path)` to measure duration, dimensions, bitrates, and codecs.
@@ -83,38 +81,51 @@ The [`TranscodingWorker`](file:///c:/Users/User/Documents/Github/Personal/VSCODE
 - **Finalization (100%):**
   - Video status transitions to `ready`.
   - Transcoding job marked `completed` with completion timestamp.
-- **Failure Recovery:**
-  - Any missing file, corrupt container, or encoding error is captured cleanly.
-  - Job transitions to `failed` with captured exception stack trace, and video status transitions to `failed` without crashing the daemon loop.
+
+### Thread-Safe Event Coordination and Failure Recovery
+
+- Any missing file, corrupt container, or encoding error is captured cleanly.
+- The job transitions to `failed` with captured exception stack trace, and video status transitions to `failed` without crashing the daemon loop.
+- Daemon thread continuously monitors shutdown signals via `threading.Event.wait(poll_interval)`, ensuring zero hung processes on server termination.
 
 ---
 
-## 4. Test Verification and Quality Gates
+## 3. Verification & Quality Gates Report
 
-The test suite was expanded with [`test_transcoding_queue.py`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week43_video_streaming/backend/tests/test_transcoding_queue.py):
+The test suite verified asynchronous queue lifecycle and concurrency mechanics across all quality gates:
+
+| Quality Gate | Tool | Target / Threshold | Result | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| Linting | Flake8 | 0 violations (88-char limit) | 0 warnings / 0 errors | PASSED |
+| Code Formatting | Black | PEP 8 / 88 columns | 100% compliant | PASSED |
+| Import Sorting | isort | Black profile compatibility | 100% compliant | PASSED |
+| Security Scanning | Bandit | Zero medium/high vulnerabilities | 0 issues found | PASSED |
+| Test Coverage | Pytest | >= 90% statement coverage | 42/42 passed (97% coverage) | PASSED |
+
+### Test Suite Highlights (`test_transcoding_queue.py`)
 - **Direct Synchronous Execution:** Verified complete four-stage lifecycle, disk artifact creation (manifests, TS chunks, posters), and rendition database persistence.
 - **Missing Resource Recovery:** Verified graceful failure handling when jobs reference non-existent video IDs or missing raw files.
 - **Asynchronous Background Worker Thread:** Verified daemon thread lifecycle, autonomous database polling, thread safety, and clean shutdown on `stop()`.
 - **Job Helpers:** Verified active job listing and video ID queries.
 
-### Quality Gates Summary
-- **Pytest:** 42 passed in 1.95s with **97% code coverage** (transcoding service achieved 99% coverage).
-- **Flake8:** 0 violations (88-character limit strictly respected).
-- **Black:** 100% formatted.
-- **isort:** Verified with Black profile.
-- **Bandit:** 0 security vulnerabilities identified across 1,867 lines of scanned code.
+---
+
+## 4. Key Engineering Insights & Decisions
+
+- **Asynchronous Separation of Ingest and Transcode:** Decoupling upload ingestion from heavy transcoding avoids holding open HTTP connections, preventing 504 Gateway Timeouts across reverse proxies and load balancers.
+- **Fine-Grained Deterministic Progress Milestones:** Dividing the transcoding pipeline into discrete percentage checkpoints (15% Inspecting, 30% Thumbnailing, 50% Packaging, 85% Persisting, 100% Completed) enables frontends to provide responsive feedback to users.
+- **Synchronous Test Execution Harness (`process_single`):** Providing an isolated execution method eliminates race conditions and arbitrary sleep timers in unit tests while retaining multi-threaded daemon execution for production runtime.
 
 ---
 
-## 5. Next Steps for Day 5
+## 5. Next Steps
 
-Day 5 will implement:
-1. REST routes in `app/routes/video_routes.py` and `job_routes.py`:
-   - `POST /api/videos/upload`: Multipart video file upload with MIME validation and automatic job enqueueing.
-   - `GET /api/videos`: Catalog list with title search, category filter, and sorting.
-   - `GET /api/videos/<video_id>`: Video metadata, renditions list, and playback URLs.
-   - `GET /api/videos/<video_id>/stream`: Progressive RFC 7233 byte-range stream endpoint.
-   - `GET /api/videos/<video_id>/hls/<filename>`: HLS master and variant playlists and segment chunk serving.
-   - `GET /api/jobs/<job_id>`: Live job progress polling.
-   - `DELETE /api/videos/<video_id>`: Delete video record and clean up disk media artifacts.
-2. Integration test suite in `backend/tests/test_routes.py`.
+- Implement REST API endpoints in `app/routes/video_routes.py` and `job_routes.py`:
+  - `POST /api/videos/upload`: Multipart video file upload with MIME validation and automatic job enqueueing.
+  - `GET /api/videos`: Catalog list with title search, category filter, and sorting.
+  - `GET /api/videos/<video_id>`: Video metadata, renditions list, and playback URLs.
+  - `GET /api/videos/<video_id>/stream`: Progressive RFC 7233 byte-range stream endpoint.
+  - `GET /api/videos/<video_id>/hls/<filename>`: HLS master and variant playlists and segment chunk serving.
+  - `GET /api/jobs/<job_id>`: Live job progress polling.
+  - `DELETE /api/videos/<video_id>`: Delete video record and clean up disk media artifacts.
+- Build integration test suite in `backend/tests/test_routes.py`.
