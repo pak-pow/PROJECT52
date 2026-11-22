@@ -22,8 +22,8 @@ Serving high-throughput machine learning models under concurrent client traffic 
 2. **Sequential Single-Item Kernel Overhead:** Machine learning inference operations are heavily optimized for batched matrix multiplication ($Z = X W + b$). Processing requests one-by-one results in high per-request synchronization overhead and poor hardware utilization.
 
 In Day 3, we constructed the execution middleware for **PulseInfer**:
-- **`InferenceCache`**: An in-memory, thread-safe LRU cache using canonical SHA-256 payload fingerprints. If an identical query is received, the gateway returns the cached prediction in sub-millisecond time ($< 0.1\text{ ms}$), completely bypassing the inference pipeline.
-- **`DynamicBatcher`**: An asynchronous request aggregator. When an incoming inference request arrives, it is enqueued into a bounded buffer. Worker threads group incoming requests into a contiguous batch as soon as either the maximum batch size is reached (e.g., 32 items) or the adaptive timeout window expires (e.g., 10 ms). The aggregated batch is dispatched to `model.predict_batch()`, and individual results are resolved to each awaiting client thread via synchronization events.
+- **`InferenceCache`**: An in-memory, thread-safe LRU cache using canonical SHA-256 payload fingerprints. If an identical query is received, the gateway returns the cached prediction in sub-millisecond time (< 0.1 ms), completely bypassing the inference pipeline.
+- **`DynamicBatcher`**: An asynchronous request aggregator grouping incoming requests into contiguous batches dispatched to `model.predict_batch()`, resolving individual results to each awaiting client thread via synchronization events.
 
 ```
 +-----------------------------------------------------------------------------+
@@ -46,96 +46,72 @@ In Day 3, we constructed the execution middleware for **PulseInfer**:
 |                          [Vectorized Batch Compute]                         |
 |                           model.predict_batch(batch)                        |
 |                                        |                                    |
-|                                        +---> [Store in Cache]               |
+|                                        +--> [Store in Cache]               |
 |                                        |                                    |
-|                                        +---> [Resolve Client Threads]       |
+|                                        +--> [Resolve Client Threads]       |
 +-----------------------------------------------------------------------------+
 ```
 
 ---
 
-## 2. Architecture & Mathematical Foundations
+## 2. Key Engineering Implementations
 
-### 2.1 InferenceCache: Canonical Hashing and LRU Eviction
+### InferenceCache: Canonical Hashing and LRU Eviction
+
 To guarantee that logically identical payloads yield the exact same cache key regardless of client-side formatting, the cache employs recursive canonicalization:
-1. **Dictionary Key Ordering:** All dictionary keys are recursively sorted in lexicographical order:
-   $$\text{canonical}(D) = \{ (k, \text{canonical}(v)) \mid k \in \text{sorted}(\text{keys}(D)) \}$$
+1. **Dictionary Key Ordering:** All dictionary keys are recursively sorted in lexicographical order: $\text{canonical}(D) = \{ (k, \text{canonical}(v)) \mid k \in \text{sorted}(\text{keys}(D)) \}$.
 2. **Float Precision Normalization:** Floating-point scalars are rounded to 8 decimal places to eliminate insignificant floating-point representation discrepancies.
 3. **Numpy Array Serialization:** NumPy vectors and matrices are converted into standardized nested lists prior to serialization.
-4. **Deterministic Hash Fingerprint:**
-   $$\text{Key} = \text{SHA-256}(\text{model\_id} \parallel \text{version} \parallel \text{JSON}_{\text{compact}}(\text{canonical}(P)))$$
+4. **Deterministic Hash Fingerprint:** $\text{Key} = \text{SHA-256}(\text{model\_id} \parallel \text{version} \parallel \text{JSON}_{\text{compact}}(\text{canonical}(P)))$.
 
-The cache enforces an LRU policy via `collections.OrderedDict`:
-- Any successful cache retrieval (`get`) relocates the entry to the recency head (`move_to_end`).
-- When the cache size reaches `max_size`, the oldest item is evicted (`popitem(last=False)`).
-- Time-to-Live (TTL) is enforced lazily on retrieval and proactively via `purge_expired()`.
+The cache enforces an LRU policy via `collections.OrderedDict`: successful retrieval relocates entries to the recency head (`move_to_end`), capacity overflow evicts the oldest item (`popitem(last=False)`), and TTL is enforced lazily on retrieval and proactively via `purge_expired()`.
 
-### 2.2 DynamicBatcher: Micro-Batching Queue
+### DynamicBatcher: Micro-Batching Queue with Adaptive Timeout
+
 The `DynamicBatcher` coordinates concurrent inference threads using a condition variable (`threading.Condition`) over a thread-safe deque:
 1. **Enqueue & Signal:** Callers wrap their payload into a `BatchItem` with an un-signaled `threading.Event` and timestamp, append it to `_queue`, and signal the condition.
-2. **Adaptive Window Evaluation:** The background worker evaluates the age of the oldest item in the queue:
-   $$\Delta t = t_{\text{now}} - t_{\text{oldest}}$$
-   $$\text{Remaining Wait} = \max\left(0, \frac{\text{timeout\_ms}}{1000} - \Delta t\right)$$
-   The worker waits on the condition variable until:
-   - Queue length satisfies $N \ge \text{max\_batch\_size}$ (Capacity Trigger), OR
-   - Remaining wait time drops to zero (Timeout Trigger), OR
-   - The batcher is signaled to shut down.
+2. **Adaptive Window Evaluation:** The background worker evaluates the age of the oldest item: $\Delta t = t_{\text{now}} - t_{\text{oldest}}$ and computes $\text{Remaining Wait} = \max(0, \frac{\text{timeout\_ms}}{1000} - \Delta t)$. The worker waits until queue length satisfies $N \ge \text{max\_batch\_size}$ (Capacity Trigger) or remaining wait drops to zero (Timeout Trigger).
 3. **Batch Execution & Fan-Out:** The worker extracts $B = \min(N, \text{max\_batch\_size})$ items, executes `predict_fn([item.payload for item in batch])`, assigns outputs to `item.result`, and signals `item.event.set()` to unblock each client thread.
 
----
+### Resilience Safeguards
 
-## 3. Key Design Decisions & Resilience Safeguards
-
-1. **Non-Blocking In-Flight Queue Draining on Shutdown:**
-   When `stop()` is invoked, any queued items that cannot be processed are rejected immediately with a descriptive `RuntimeError`, preventing client threads from hanging indefinitely.
-2. **Per-Item Exception Propagation:**
-   If the vectorized model prediction function raises an exception (e.g., input dimension mismatch or malformed tensor), the exception is captured and propagated to every item in the batch. Each caller receives the exact exception raised without crashing the background worker.
-3. **Atomic Reference & Thread Safety:**
-   All cache reads, writes, and evictions are guarded by a re-entrant lock (`RLock`). Batcher queue state transitions and condition variables are protected by a dedicated mutex.
+- **Non-Blocking In-Flight Queue Draining on Shutdown:** When `stop()` is invoked, any queued items that cannot be processed are rejected immediately with a descriptive `RuntimeError`, preventing client threads from hanging indefinitely.
+- **Per-Item Exception Propagation:** If the vectorized model prediction raises an exception (e.g., input dimension mismatch), the exception is captured and propagated to every item in the batch without crashing the background worker.
+- **Atomic Reference & Thread Safety:** All cache reads, writes, and evictions are guarded by a re-entrant lock (`RLock`). Batcher queue state transitions are protected by a dedicated mutex.
 
 ---
 
-## 4. Test Suite & Verification Results
+## 3. Verification & Quality Gates Report
 
-### 4.1 Pytest Execution & Coverage
-All 55 unit tests passed in 4.10 seconds with 99% overall test coverage:
-```
-tests/test_batcher_and_cache.py ................. [ 30%]
-tests/test_db.py ................................ [ 41%]
-tests/test_health.py ........                     [ 47%]
-tests/test_models.py .........                    [ 52%]
-tests/test_models_ml.py ......................... [ 90%]
-tests/test_seed.py ...                            [ 94%]
-tests/test_storage.py ........                    [100%]
+The test suite verified cache operations, batcher concurrency, and thread safety across all quality gates:
 
-Name                              Stmts   Miss  Cover
------------------------------------------------------
-app\services\batcher_service.py     124      2    98%
-app\services\cache_service.py       100      0   100%
-app\services\storage_service.py      26      0   100%
-app\ml\preprocessors.py             108      0   100%
-app\ml\models\nlp_model.py           58      0   100%
-app\ml\models\vision_model.py        69      0   100%
-app\ml\models\tabular_model.py       69      0   100%
-app\models\prediction_log.py         38      0   100%
-app\models\model_entity.py           39      1    97%
-app\models\model_version.py          57      1    98%
------------------------------------------------------
-TOTAL                               947     14    99%
-```
+| Quality Gate | Tool | Target / Threshold | Result | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| Linting | Flake8 | 0 violations (88-char limit) | 0 warnings / 0 errors | PASSED |
+| Code Formatting | Black | PEP 8 / 88 columns | 100% compliant | PASSED |
+| Import Sorting | isort | Black profile compatibility | 100% compliant | PASSED |
+| Security Scanning | Bandit | Zero medium/high vulnerabilities | 0 issues found | PASSED |
+| Test Coverage | Pytest | >= 90% statement coverage | 55/55 passed (99% coverage) | PASSED |
 
-### 4.2 Quality Gate Summary
-- **Gate 1 (Flake8):** Clean run with 0 errors under the 88-character limit.
-- **Gate 2 (Black):** Formatted and verified clean across all modules.
-- **Gate 3 (isort):** All import hierarchies validated under `--profile black`.
-- **Gate 4 (Bandit):** Security analysis completed with 0 vulnerabilities detected across 1,685 lines of code.
-- **Gate 5 (Pytest):** 55/55 tests passing (99% coverage >= 90% threshold).
+### Key Module Coverage
+| Module | Statements | Miss | Coverage |
+| :--- | :--- | :--- | :--- |
+| `app/services/cache_service.py` | 100 | 0 | 100% |
+| `app/services/batcher_service.py` | 124 | 2 | 98% |
+| `app/ml/preprocessors.py` | 108 | 0 | 100% |
 
 ---
 
-## 5. Next Steps for Day 4
+## 4. Key Engineering Insights & Decisions
 
-With caching and dynamic micro-batching verified, Day 4 will implement the Model Registry Service and Telemetry Engine:
-1. **Model Registry Service (`ModelRegistry`):** Model lifecycle management (loading, warming up, active, hot-reloading, unloading) and zero-downtime hot-swapping between versions.
-2. **Telemetry Engine (`TelemetryEngine`):** Sliding-window histograms computing p50, p90, p95, and p99 latencies, cache hit ratios, and throughput tracking.
-3. **Audit Logging Integration:** Seamless database persistence via `PredictionLogDAO`.
+- **Canonical SHA-256 Hashing vs. Naive String Keys:** Recursive dictionary key sorting and float rounding guarantee that `{"b": 1.0, "a": 2.0}` and `{"a": 2.0, "b": 1.0}` produce identical cache keys, eliminating duplicate model execution for semantically identical payloads.
+- **Condition Variable vs. Polling for Batch Coalescing:** Using `threading.Condition.wait(timeout=remaining)` instead of busy-loop polling eliminates wasted CPU cycles during idle periods while still triggering immediate batch dispatch when capacity thresholds are met.
+- **LRU Over FIFO Eviction:** Least-recently-used eviction prioritizes retention of hot query patterns (e.g., the same sentiment query submitted repeatedly), maximizing cache hit ratios under realistic production traffic distributions.
+
+---
+
+## 5. Next Steps
+
+- Implement Model Registry Service (`ModelRegistry`) with model lifecycle management (loading, warming up, active, hot-reloading, unloading) and zero-downtime hot-swapping between versions.
+- Build Telemetry Engine (`TelemetryEngine`) with sliding-window histograms computing p50, p90, p95, and p99 latencies, cache hit ratios, and throughput tracking.
+- Integrate audit logging persistence via `PredictionLogDAO`.
