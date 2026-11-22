@@ -48,64 +48,74 @@ In Day 6, we developed and wired the complete frontend client layer:
 
 ---
 
-## 2. Key Modules Implemented
+## 2. Key Engineering Implementations
 
-### 2.1 HLS Stream Controller (`frontend/src/player/hls_controller.js`)
+### HLS Stream Controller and Adaptive Bitrate Quality Selector
+
 - Wraps `Hls.js` with lifecycle event handlers (`MEDIA_ATTACHED`, `MANIFEST_PARSED`, `LEVEL_SWITCHED`, `ERROR`).
 - Provides callbacks for level registration (`onLevelsLoaded`) and dynamic level switches (`onLevelSwitched`).
 - Exposes `setQuality(levelIndex)` supporting `-1` for Auto (ABR) and explicit integer indices for locked renditions.
 - Handles native Apple Safari HLS (`application/vnd.apple.mpegurl`) and progressive byte-range playback fallback if Hls.js is unavailable or fails.
 
-### 2.2 Custom Video Player UI (`frontend/src/player/video_player.js`)
+### Custom Video Player UI with Keyboard Navigation
+
 - **Scrubbing and Buffering:** Dual-bar scrubber with `#bufferedBar` displaying cached video time ranges and `#progressBar` enabling smooth scrubbing without audio glitching.
 - **ABR Quality Selector:** Dynamically populates `#qualitySelect` with active rendition profiles (`1080p (4.5 Mbps)`, `720p (2.5 Mbps)`, `480p (1.0 Mbps)`, `360p (0.6 Mbps)`) and updates the label when auto-switching happens in real-time.
 - **Controls Auto-Hide:** Fades out controls after 2.5 seconds of inactivity during playback, re-displaying immediately upon mouse movement or pause state.
-- **Comprehensive Keyboard Shortcuts:**
-  - `Space` / `K`: Toggle play/pause.
-  - `F`: Toggle fullscreen.
-  - `M`: Toggle mute.
-  - `Left` / `Right`: Seek backward/forward 5 seconds.
-  - `Up` / `Down`: Adjust volume by 10%.
-  - `0` - `9`: Jump to 0% - 90% timeline position.
+- **Comprehensive Keyboard Shortcuts:** `Space`/`K` toggle play/pause, `F` toggles fullscreen, `M` toggles mute, `Left`/`Right` seek 5 seconds, `Up`/`Down` adjust volume by 10%, and `0`-`9` jump to 0%-90% timeline position.
 
-### 2.3 Catalog and Category Explorer (`frontend/src/ui/catalog_view.js`)
+### Catalog and Category Explorer
+
 - Renders category pill buttons with item count badges.
 - Displays responsive card grid with lazy-loaded poster thumbnails, duration tags (`M:SS`), views, and category badges.
 - Features real-time search filtering with debounced query evaluation across video titles and descriptions.
 - Automatically flags in-progress videos with status badges (`processing`, `queued`).
 
-### 2.4 Ingestion Modal and Live Telemetry Tracker (`frontend/src/ui/upload_modal.js`)
+### Ingestion Modal and Live Telemetry Tracker
+
 - Supports drag-and-drop file ingestion with size validation and automatic title derivation from filename stems.
 - Dispatches multipart requests to `POST /api/videos/upload`.
-- Polls `/api/jobs/:job_id` every 600ms, mapping background daemon stages to human-readable progress indicators:
-  - `inspecting` (15%): Extracting duration, dimensions, bitrates, and codecs.
-  - `thumbnailing` (30%): Generating video poster frame.
-  - `packaging_hls` (50%): Transcoding multi-bitrate MPEG-2 TS chunks and playlists.
-  - `saving_renditions` (85%): Persisting stream profiles to SQLite.
-  - `completed` (100%): Transitioning video to `ready` status.
+- Polls `/api/jobs/:job_id` every 600ms, mapping background daemon stages to human-readable progress indicators: `inspecting` (15%), `thumbnailing` (30%), `packaging_hls` (50%), `saving_renditions` (85%), and `completed` (100%).
 - Automatically refreshes the catalog and loads the new video upon transcode completion.
 
-### 2.5 Application Orchestrator (`frontend/src/app.js`)
+### Application Orchestrator and Static Delivery
+
 - Connects player, catalog, and upload controllers to Flask REST endpoints.
 - Auto-queues the first available ready video on initial page load for immediate viewing.
-- Implements smooth scrolling to player when any catalog card is selected.
-
-### 2.6 Static Delivery Integration (`backend/app/__init__.py`)
 - Configured static route handlers to serve `index.html` at root `/` and static assets under `/src/<path>` and `/public/<path>` directly from the frontend directory.
 
 ---
 
-## 3. Test Verification and Quality Gates
+## 3. Verification & Quality Gates Report
 
-The test suite in [`tests/test_routes.py`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week43_video_streaming/backend/tests/test_routes.py) was augmented with `test_serve_frontend_index_and_static_assets`, validating:
-- Serving `index.html` at `/`.
-- Serving CSS assets at `/src/assets/base.css`.
-- Serving modular JavaScript files at `/src/app.js`.
+The test suite verified frontend static serving and integration with backend API routes across all quality gates:
+
+| Quality Gate | Tool | Target / Threshold | Result | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| Linting | Flake8 | 0 violations (88-char limit) | 0 warnings / 0 errors | PASSED |
+| Code Formatting | Black | PEP 8 / 88 columns | 100% compliant | PASSED |
+| Import Sorting | isort | Black profile compatibility | 100% compliant | PASSED |
+| Security Scanning | Bandit | Zero medium/high vulnerabilities | 0 issues found | PASSED |
+| Test Coverage | Pytest | >= 90% statement coverage | 52/52 passed (97% coverage) | PASSED |
+
+### Test Suite Highlights
+- Serving `index.html` at `/` root path.
+- Serving CSS assets at `/src/assets/base.css` and modular JavaScript at `/src/app.js`.
 - Proper 404 responses for non-existent frontend assets.
 
-### Quality Gates Summary
-- **Flake8:** Passed with 0 violations (88 character line limit).
-- **Black:** Clean code formatting across all source and test modules.
-- **isort:** All module imports formatted with `--profile black`.
-- **Bandit:** 0 security issues identified across the application codebase.
-- **Pytest:** 52 passed in 2.99s with 97% overall code coverage.
+---
+
+## 4. Key Engineering Insights & Decisions
+
+- **Hls.js Over Native HLS for Cross-Browser Parity:** Safari supports HLS natively via `<video>` tag, but Chrome, Firefox, and Edge do not. Hls.js provides uniform ABR switching, error recovery, and rendition management across all modern browsers while falling back to native playback on Safari for optimal performance.
+- **Debounced Search with 300ms Delay:** Triggering catalog API calls on every keystroke would generate excessive network traffic. A 300ms debounce ensures queries fire only after the user stops typing, reducing API load while maintaining responsive search feedback.
+- **Job Polling at 600ms Intervals:** Polling too frequently (e.g., every 100ms) wastes bandwidth and SQLite read locks; polling too slowly (e.g., every 5s) makes progress updates feel sluggish. The 600ms interval balances responsiveness with server load, and the interval is cleared immediately upon job completion.
+
+---
+
+## 5. Next Steps
+
+- Build the end-to-end integration test suite validating the full video lifecycle from upload through transcoding to HLS playback.
+- Run concurrency benchmarks simulating parallel streaming clients with simultaneous upload and transcoding workloads.
+- Execute chaos tests injecting disk failures, database corruption, and worker crashes to validate resilience.
+- Compile production handover documentation and quality gate certification report.
