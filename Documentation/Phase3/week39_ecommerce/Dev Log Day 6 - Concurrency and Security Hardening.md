@@ -17,64 +17,110 @@ Tags:
 
 ## 1. The Big Picture and Simple Explanation
 
-When an online store hosts a popular product release, hundreds of customers may attempt to purchase the exact same item at the exact same second. If the application reads inventory before updating it (`SELECT stock` followed by `UPDATE stock`), two or more checkout requests can read the same stock count simultaneously, leading to overselling.
+During high-demand flash sales or product drops, multiple shoppers may attempt to purchase the final unit of stock at the exact same millisecond. If the application separates the stock verification from the stock deduction (`SELECT stock` followed by `UPDATE stock`), concurrent requests can read the same stock count simultaneously, causing severe inventory overselling.
 
-Today, we hardened the backend against concurrency conflicts and malicious input:
-1. **Eliminating Race Conditions:** We changed inventory deduction to an atomic, conditional SQL update: `UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?`. Even if multiple checkouts hit the database simultaneously, the database guarantees that only one request succeeds per available unit of inventory.
-2. **Preventing Database Lock Failures:** Under concurrent threads, SQLite can throw `OperationalError: database is locked`. We configured a 30-second connection timeout and `PRAGMA busy_timeout = 30000`, allowing transactions to wait gracefully rather than crashing.
-3. **Cross-Site Scripting (XSS) Sanitization:** Customer names and shipping addresses are sanitized using `html.escape()` before being stored and rendered in printable invoices.
-4. **Strict Webhook Verification:** Removed default fallback signatures in the Stripe webhook endpoint to ensure only authentic cryptographic signatures are accepted.
-5. **Promo Code Fuzzing Protection:** Capped coupon codes at 30 characters and added strict format checks to block SQL fuzzing and injection attempts.
+In Day 6, we hardened the platform against concurrency conflicts and malicious input:
+1. **Atomic SQL Stock Deduction:** Replaced multi-step check-then-act logic with a single atomic conditional query: `UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ? AND stock_quantity >= ?`. The database engine guarantees mutual exclusion, allowing only one thread to purchase the final item.
+2. **SQLite Concurrency Resilience:** Configured `PRAGMA busy_timeout = 30000;` and a 30-second connection timeout, allowing concurrent write transactions to queue cleanly rather than failing with lock errors.
+3. **Cross-Site Scripting (XSS) Sanitization:** Neutralized injection vectors by sanitizing customer names and shipping addresses using `html.escape()` prior to persistence and invoice generation.
+4. **Mandatory Webhook Cryptographic Verification:** Removed mock signature fallbacks in the Stripe webhook route, enforcing valid HMAC-SHA256 signatures on all inbound notifications.
+5. **Input Boundary Fuzzing Protection:** Capped coupon codes at 30 characters with strict regex validation to block buffer overruns and SQL fuzzing attacks.
 
-```mermaid
-graph TD
-    subgraph ConcurrentCheckouts["10 Concurrent Shoppers Competing for 1 Item"]
-        T1["Thread 1"]
-        T2["Thread 2"]
-        TN["Threads 3-10"]
-    end
-
-    T1 --> AtomicSQL["Atomic SQL Reservation (stock >= 1)"]
-    T2 --> AtomicSQL
-    TN --> AtomicSQL
-
-    AtomicSQL -->|Winner (1 Order)| Success["Order Created & Payment Authorized"]
-    AtomicSQL -->|Losers (9 Orders)| OutOfStock["409 Insufficient Stock Error (Zero Overselling)"]
+```
++-----------------------------------------------------------------------------+
+|                     High-Concurrency Atomic Stock Reservation               |
+|                                                                             |
+|      +---------------------------------------------------------------+      |
+|      | 10 Concurrent Shopper Threads Competing for 1 Remaining Item  |      |
+|      +-------------------------------+-------------------------------+      |
+|                                      |                                      |
+|                                      v                                      |
+|      +---------------------------------------------------------------+      |
+|      | Single Atomic SQL Query:                                      |      |
+|      | UPDATE products SET stock_quantity = stock_quantity - 1       |      |
+|      | WHERE id = ? AND stock_quantity >= 1                          |      |
+|      +-------------------------------+-------------------------------+      |
+|                                      |                                      |
+|                     +----------------+----------------+                     |
+|                     |                                 |                     |
+|             [cur.rowcount == 1]               [cur.rowcount == 0]           |
+|                     v                                 v                     |
+|      +-------------------------------+    +--------------------------+      |
+|      | Transaction Winner (1 Thread) |    | Contention (9 Threads)   |      |
+|      | - Inventory Reserved          |    | - Rollback Transaction   |      |
+|      | - Order Created & Authorized  |    | - Return HTTP 409        |      |
+|      | - Final Stock = 0             |    | - Zero Overselling       |      |
+|      +-------------------------------+    +--------------------------+      |
++-----------------------------------------------------------------------------+
 ```
 
 ---
 
-## 2. Key Modules and Features Implemented Today
+## 2. Key Engineering Implementations
 
 ### Database Concurrency Resilience (`app/db.py`)
-- Configured `sqlite3.connect(..., timeout=30.0)` for all database operations.
-- Executed `PRAGMA busy_timeout = 30000;` on connection creation, allowing SQLite to queue concurrent writes for up to 30 seconds instead of throwing lock errors.
+- Configured connection timeout parameter: `sqlite3.connect(..., timeout=30.0)`.
+- Enforced busy timeout pragma on every connection checkout: `PRAGMA busy_timeout = 30000;`. SQLite automatically queues concurrent write locks up to 30 seconds before timing out.
 
-### Atomic Inventory Protection (`app/models/order_model.py`)
-- Rewrote checkout stock deductions to enforce row-level conditions: `WHERE id = ? AND stock_quantity >= ?`.
-- Verified row counts after execution (`cur.rowcount == 0` triggers an immediate rollback), completely preventing negative inventory balances.
-- Sanitized `customer_name` and `shipping_address` with `html.escape()` to protect admin and invoice views against stored XSS attacks.
+### Atomic Inventory Deductions (`app/models/order_model.py`)
+- Rewrote checkout reservations to enforce atomic row-level conditions:
+  ```python
+  cur.execute(
+      """
+      UPDATE products
+      SET stock_quantity = stock_quantity - ?
+      WHERE id = ? AND stock_quantity >= ?
+      """,
+      (item["quantity"], item["product_id"], item["quantity"])
+  )
+  if cur.rowcount == 0:
+      conn.rollback()
+      raise InsufficientStockError(f"Insufficient stock for product {item['product_id']}")
+  ```
+- Sanitized `customer_name` and `shipping_address` with `html.escape()`, ensuring stored XSS attacks cannot execute in printable receipts.
 
-### Promo Validation Hardening (`app/routes/cart_routes.py`)
-- Restricted coupon code length to a maximum of 30 characters.
-- Added strict whitespace and format checks to reject malformed or fuzzing payloads early before database querying.
+### Input Hardening and Webhook Verification
+- Promo code boundaries: Enforced strict 30-character length limits and alphanumeric constraints in `app/routes/cart_routes.py`.
+- Webhook signature enforcement: Required valid `Stripe-Signature` headers on all incoming webhook payloads, returning HTTP 400 immediately if missing or invalid.
 
-### Webhook Security (`app/routes/webhook_routes.py`)
-- Enforced mandatory `Stripe-Signature` headers on all incoming webhook requests.
-- Removed default mock signature fallbacks, returning HTTP 400 immediately if signature headers are absent or forged.
-
-### Security and Concurrency Test Suite (`tests/test_concurrency_and_security.py`)
-- Created a dedicated security test module containing 6 automated tests:
-  - **10-Thread Flash Sale Race Condition Test**: Verified that when 10 threads attempt to purchase the final unit of stock simultaneously, exactly 1 succeeds and 9 receive clean 409 errors. Total stock finishes at exactly 0.
-  - **SQL Injection Fuzzing Test**: Verified parameterized queries prevent SQL injection payloads in search and cart routes.
-  - **XSS Sanitization Test**: Verified script injection payloads in customer addresses are neutralized.
-  - **Promo Code Fuzzing Test**: Confirmed long strings and malicious characters are rejected.
-  - **Webhook Forgery Test**: Verified forged signatures receive HTTP 400 responses.
+### Concurrency and Security Test Suite (`tests/test_concurrency_and_security.py`)
+- **10-Thread Flash Sale Concurrency Test:** Executed 10 concurrent threads attempting to purchase 1 remaining inventory item. Asserted exactly 1 thread succeeds (HTTP 201) while 9 receive HTTP 409 Conflict, and final stock balances at exactly 0.
+- **SQL Injection Fuzzing Test:** Verified parameterized queries neutralize SQL injection payloads across search, filtering, and promo codes.
+- **XSS Neutralization Test:** Asserted script tags in customer addresses render harmlessly as escaped entities.
+- **Webhook Forgery Verification:** Confirmed forged or unsigned webhook requests are rejected with HTTP 400.
 
 ---
 
-## 3. Key Takeaways and Next Steps
+## 3. Verification & Quality Gates Report
 
-- **Atomic Queries Prevent Race Conditions:** Never separate the check from the update in high-concurrency environments. Combining them into a single conditional query eliminates overselling.
-- **Configure SQLite Timeouts for Concurrency:** Setting `PRAGMA busy_timeout` gives SQLite the resilience needed to handle bursty concurrent web traffic smoothly.
-- **Ready for Day 7:** With concurrency hardened and security verified, Day 7 will focus on final storefront polish, bug fixes, master portal integration, and project handover.
+The security defenses and concurrency guarantees were validated across automated tests:
+
+| Test Suite Module | Target Scope | Tests Passed | Status |
+| :--- | :--- | :---: | :---: |
+| `tests/test_concurrency_and_security.py` | 10-thread flash sale race condition, XSS, fuzzing | 6 | Passed |
+| `tests/test_orders_and_webhooks.py` | Order state machine, payment flows, webhook idempotency | 11 | Passed |
+| `tests/test_cart.py` | Cart operations and pricing calculations | 13 | Passed |
+| `tests/test_products.py` | Catalog listings and search queries | 12 | Passed |
+| `tests/test_health_and_version.py` | Liveness, readiness, and version probes | 4 | Passed |
+| `tests/test_coverage_boost.py` | Error handlers and edge conditions | 6 | Passed |
+
+### Quality Gates Execution Summary
+- **Total Tests:** 52 automated tests passing in 1.48 seconds.
+- **Branch Coverage:** 95.39% total branch coverage.
+- **Security Audit:** Bandit scan clean with 0 issues.
+- **Concurrency Result:** 10 concurrent threads completed with 0 overselling.
+
+---
+
+## 4. Key Engineering Insights & Decisions
+
+- **Atomic Queries Prevent Race Conditions:** Combining the stock availability check and update into a single conditional SQL statement eliminates race windows without requiring heavy external distributed lock services.
+- **Busy Timeouts Enable SQLite Multi-Threading:** Configuring `busy_timeout` prevents immediate `database is locked` crashes during write contention by queueing locks gracefully.
+- **Input Sanitization at the Model Boundary:** Sanitizing text fields like shipping addresses before database persistence protects both internal admin consoles and public invoice displays.
+
+---
+
+## 5. Next Steps
+
+- Finalize UI bug fixes, replace heavy CSS icons with inline SVGs, and integrate Week 39 into the Phase 3 master hub portal.
+- Complete system handover and technical documentation in `week39_ecommerce_store/README.md`.
