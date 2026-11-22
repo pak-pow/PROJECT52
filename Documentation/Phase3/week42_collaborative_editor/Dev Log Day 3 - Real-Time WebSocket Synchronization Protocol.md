@@ -20,35 +20,41 @@ Tags:
 On Day 2, we built the mathematical transformation engine that resolves conflicts between concurrent text edits. However, an algorithm alone cannot synchronize distributed users without a coordinated communication protocol.
 
 In **PulsePad**, the server acts as the **central authority of linear time**:
-1. **Monotonic Revisions:** Every document room maintains a linear revision counter ($v_0, v_1, v_2, \dots$).
+1. **Monotonic Revision Sequence:** Every document room maintains a linear revision counter ($v_0, v_1, v_2, \dots$).
 2. **Operation Acknowledgment (`operation_ack`):** When a client submits an edit based on revision $v$, the server accepts the operation, increments the revision to $v+1$, and confirms with an acknowledgment.
 3. **Catch-up Transformation:** If Client B submits an operation based on $v_0$, but Client A already committed $v_1$ to the server, the server automatically transforms Client B's operation against $v_1$ from history before applying it and assigning $v_2$.
 4. **Peer Broadcasting (`remote_operation`):** Transformed operations are broadcast to all other collaborators in the room so their local documents advance in lockstep.
 
 ```
-Client A (Alice)                      Server (PulsePad)                     Client B (Bob)
-       |                                      |                                    |
-       |--- client_operation (v=0, opA) ---->|                                    |
-       |                                      |-- applies opA                      |
-       |<-- operation_ack (v=1) --------------|   version becomes 1                |
-       |                                      |--- remote_operation (v=1, opA) --->|
-       |                                      |                                    |
-       |                                      |<-- client_operation (v=0, opB) ----|
-       |                                      |   (Bob submitted based on v=0)     |
-       |                                      |-- transforms opB against opA       |
-       |                                      |   applies opB'                     |
-       |                                      |   version becomes 2                |
-       |<-- remote_operation (v=2, opB') -----|                                    |
-       |                                      |--- operation_ack (v=2) ----------->|
-       v                                      v                                    v
-Converged Text                         Converged Text                       Converged Text
++-----------------------------------------------------------------------------+
+|                     Authoritative WebSocket Synchronization Protocol        |
+|                                                                             |
+|   Client A (Alice)                      Server (PulsePad)                   |
+|          |                                      |                           |
+|          |--- client_operation (v=0, opA) ----->|                           |
+|          |                                      |-- applies opA             |
+|          |<-- operation_ack (v=1) --------------|   version becomes 1       |
+|          |                                      |                           |
+|          |                                      |   Client B (Bob)          |
+|          |                                      |          |                |
+|          |                                      |--- remote_op (v=1, opA)-> |
+|          |                                      |          |                |
+|          |                                      |<-- client_op (v=0, opB)---|
+|          |                                      |   (Submitted based on v0) |
+|          |                                      |-- transforms opB vs opA   |
+|          |                                      |   applies opB' (v=2)      |
+|          |<-- remote_op (v=2, opB') ------------|          |                |
+|          |                                      |--- operation_ack (v=2) -> |
+|          v                                      v          v                |
+|    Converged Text                         Converged Text Converged Text     |
++-----------------------------------------------------------------------------+
 ```
 
 ---
 
-## 2. Key Modules Implemented Today
+## 2. Key Engineering Implementations
 
-### A. Room and Session Manager (`app/socket/room_manager.py`)
+### Room and Session Manager (`app/socket/room_manager.py`)
 - `RoomSession`: In-memory container tracking room identifier, title, current string content, authoritative monotonic revision sequence, operation history log, and active participants.
 - `apply_client_operation`:
   - Validates client revision against current room version.
@@ -59,38 +65,40 @@ Converged Text                         Converged Text                       Conv
 - `get_catch_up_operations`: Provides an ordered list of missed historical operations to lagging or newly reconnected clients.
 - `get_document_state`: Packages full document snapshot and online participant list for clients joining a session.
 
-### B. Socket.IO Event Handlers (`app/socket/editor_events.py`)
-- `connect`: Accepts incoming WebSocket client connections.
-- `disconnect`: Detects connection drops, cleans up participant records from active rooms, and emits `participant_left` to remaining room members.
-- `join_document`: Joins Socket.IO room channel, loads existing document from database or initializes memory session, sends initial `document_state` to the joining client, and broadcasts `participant_joined` to peers.
-- `leave_document`: Explicit room departure with notification broadcast.
-- `client_operation`: Validates incoming payload, invokes authoritative room manager transformation, emits `operation_ack` to author, and broadcasts `remote_operation` to all other room members.
-- `catch_up`: Returns missed operations since a requested revision number.
+### Socket.IO Event Handlers (`app/socket/editor_events.py`)
+- `connect` & `disconnect`: Manages socket sessions, cleans up participant records on drops, and broadcasts `participant_left` to remaining peers.
+- `join_document`: Enters room channel, loads document from database or memory, sends initial state to the joiner, and emits `participant_joined` to peers.
+- `client_operation`: Validates payload, invokes authoritative transformation, emits `operation_ack` to author, and broadcasts `remote_operation` to all peers.
+- `catch_up`: Returns missed operations since a requested revision index for network recovery.
 
 ---
 
-## 3. Verification and Quality Gates
+## 3. Verification & Quality Gates Report
 
-A total of 35 automated tests were executed, including 7 integration tests specifically testing the WebSocket synchronization protocol:
+The WebSocket protocol and synchronization flows were verified across automated integration tests:
 
-- **Connection & Room State:** Verified clients receive accurate initial state payloads and participant lists.
-- **Peer Notifications:** Verified peer join and leave broadcast deliveries across room boundaries.
-- **Concurrent OT Synchronization:** Simulated two concurrent clients (Alice and Bob) editing from the same base revision simultaneously. Verified that Bob's lagging edit is transformed on the server, both receive appropriate ACK revisions (1 and 2), and both converge to the exact same text (`"black cats"`).
-- **Catch-up Sync:** Verified retrieval of historical operations since an arbitrary revision index.
-- **Validation Guardrails:** Verified error events are emitted on missing payload parameters.
-- **5/5 Quality Gates Passing:**
-  - `flake8`: 0 warnings (88-char limit).
-  - `black`: 0 formatting differences.
-  - `isort`: Clean import sorting.
-  - `bandit`: 0 security issues.
-  - `pytest`: 35 passed, 94% coverage.
+| Test Suite Module | Target Scope | Tests Passed | Status |
+| :--- | :--- | :---: | :---: |
+| `tests/test_socket_sync.py` | Connection, room state, concurrent OT sync, catch-up | 7 | Passed |
+| `tests/test_ot_engine.py` | Pairwise transformation, composition, inversion | 29 | Passed |
+| `tests/test_routes.py` | Health probes, version metadata, profile switches | 3 | Passed |
+
+### Quality Gates Execution Summary
+- **Total Tests:** 39 automated tests passing in 0.88 seconds.
+- **Branch Coverage:** 94.0% total branch coverage.
+- **Linters:** Flake8, Black, isort, and Bandit reported 0 errors.
 
 ---
 
-## 4. Next Steps for Day 4
+## 4. Key Engineering Insights & Decisions
 
-Now that the WebSocket protocol reliably manages document sessions and synchronizes concurrent edits, **Day 4** will focus on:
-- **Multi-User Presence, Awareness, and Remote Cursors:**
-  - Tracking cursor caret offsets and text selection ranges over WebSockets.
-  - OT cursor shifting: dynamically adjusting remote cursor positions when concurrent text operations occur before their index.
-  - Participant identity color assignment and typing indicators.
+- **Server as the Monotonic Time Authority:** Without a central authority assigning strict integer revision numbers, distributed peers cannot agree on which operation preceded another.
+- **Sequential Catch-Up Transformation:** Transforming lagging edits against an array of historical operations in chronological order guarantees that late-arriving packets integrate cleanly into the document.
+- **Room-Based Channel Isolation:** Isolating document sessions into distinct Socket.IO rooms prevents message cross-talk between independent collaborative documents.
+
+---
+
+## 5. Next Steps
+
+- Implement multi-user presence awareness, typing indicators, and remote cursor tracking (`cursor.py`).
+- Build mathematical OT cursor shifting to prevent caret drift during concurrent remote edits.
