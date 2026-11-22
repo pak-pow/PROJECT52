@@ -47,10 +47,11 @@ As the video plays, client players (such as Hls.js or Safari's native AVPlayer) 
 
 ---
 
-## 2. Master Manifest and Variant Playlist Architecture
+## 2. Key Engineering Implementations
 
-The [`HLSPackager`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week43_video_streaming/backend/app/services/hls_packager.py) generates standards-compliant text manifests:
+### Master Manifest and Variant Playlist Architecture
 
+The `HLSPackager` generates standards-compliant text manifests:
 - **Master Manifest Generation (`generate_master_manifest`):**
   - Synthesizes `#EXT-X-STREAM-INF` directives declaring `BANDWIDTH` in bits per second, `RESOLUTION` dimensions ($W \times H$), `FRAME-RATE`, and MIME codec descriptors (e.g., `CODECS="avc1.64002a,mp4a.40.2"`).
   - Supports custom URI path prefixes for clean integration with downstream HTTP reverse proxies and CDNs.
@@ -59,30 +60,39 @@ The [`HLSPackager`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJE
   - Declares `#EXT-X-PLAYLIST-TYPE:VOD` and sequential media indexing `#EXT-X-MEDIA-SEQUENCE:0`.
   - Pairs each `#EXTINF:D.DDDDDD,` tag with its corresponding `.ts` segment filename and terminates with `#EXT-X-ENDLIST`.
 
----
-
-## 3. Dual-Engine Transcoding and Segmentation
+### Dual-Engine Transcoding and Segmentation Pipeline
 
 The packaging pipeline provides a resilient dual-engine architecture:
+- **System FFmpeg Multi-Rendition Pipeline (`_package_ffmpeg`):**
+  - Discovered automatically via system PATH.
+  - Executes multi-profile downscaling, H.264 video encoding (`libx264`), AAC audio encoding, and segment slicing via native `-hls_time` arguments.
+  - Captures rendition counts and validates artifact creation.
+- **Pure-Python Native Segmenter Fallback (`_package_python_fallback`):**
+  - Active when FFmpeg is not installed or when running in offline CI environments.
+  - Slices source video durations into uniform intervals (default 4.0s).
 
-1. **System FFmpeg Multi-Rendition Pipeline (`_package_ffmpeg`):**
-   - Discovered automatically via system PATH.
-   - Executes multi-profile downscaling, H.264 video encoding (`libx264`), AAC audio encoding, and segment slicing via native `-hls_time` arguments.
-   - Captures rendition counts and validates artifact creation.
-2. **Pure-Python Native Segmenter Fallback (`_package_python_fallback`):**
-   - Active when FFmpeg is not installed or when running in offline CI environments.
-   - Slices source video durations into uniform intervals (default 4.0s).
-   - Generates valid MPEG-2 Transport Stream packets:
-     - **Program Association Table (PAT):** PID `0x0000`, mapping Program 1 to PMT PID `0x1000`.
-     - **Program Map Table (PMT):** PID `0x1000`, declaring Stream 1 (H.264 Video, stream type `0x1B`, PID `0x0100`) and Stream 2 (AAC Audio, stream type `0x0F`, PID `0x0101`).
-     - **Packetized Elementary Stream (PES):** PID `0x0100`, with standard PTS timestamps, start prefixes (`0x000001E0`), and continuity counter cycling.
-     - **Framing:** Every packet is exactly 188 bytes beginning with the sync byte `0x47` and padded with `0xFF` adaptation stuffing.
+### Pure-Python MPEG-2 Transport Stream (TS) Packet Builder
+
+- **Program Association Table (PAT):** PID `0x0000`, mapping Program 1 to PMT PID `0x1000`.
+- **Program Map Table (PMT):** PID `0x1000`, declaring Stream 1 (H.264 Video, stream type `0x1B`, PID `0x0100`) and Stream 2 (AAC Audio, stream type `0x0F`, PID `0x0101`).
+- **Packetized Elementary Stream (PES):** PID `0x0100`, with standard PTS timestamps, start prefixes (`0x000001E0`), and continuity counter cycling.
+- **Framing & Padding:** Every packet is exactly 188 bytes beginning with the sync byte `0x47` and padded with `0xFF` adaptation stuffing.
 
 ---
 
-## 4. Test Verification and Quality Gates
+## 3. Verification & Quality Gates Report
 
-The test suite was expanded with [`test_hls_packager.py`](file:///c:/Users/User/Documents/Github/Personal/VSCODE_PROJECT52/PROJECT52-PHASE3/week43_video_streaming/backend/tests/test_hls_packager.py):
+The test suite verified HLS packaging, manifest syntax, and transport stream framing across all quality gates:
+
+| Quality Gate | Tool | Target / Threshold | Result | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| Linting | Flake8 | 0 violations (88-char limit) | 0 warnings / 0 errors | PASSED |
+| Code Formatting | Black | PEP 8 / 88 columns | 100% compliant | PASSED |
+| Import Sorting | isort | Black profile compatibility | 100% compliant | PASSED |
+| Security Scanning | Bandit | Zero medium/high vulnerabilities | 0 issues found | PASSED |
+| Test Coverage | Pytest | >= 90% statement coverage | 37/37 passed (97% coverage) | PASSED |
+
+### Test Suite Highlights (`test_hls_packager.py`)
 - Validated Master Manifest syntax, tag attributes, and codec strings across 1080p, 720p, 480p, and 360p tiers.
 - Validated Variant Playlist formatting, target duration clamping, and `#EXT-X-ENDLIST` termination.
 - Validated error handling when segment duration lists and filename counts diverge.
@@ -90,19 +100,19 @@ The test suite was expanded with [`test_hls_packager.py`](file:///c:/Users/User/
 - Validated mock FFmpeg success and failure fallback recovery.
 - Validated TS packet builder payload truncation and padding.
 
-### Quality Gates Summary
-- **Pytest:** 37 passed in 0.83s with **97% code coverage**.
-- **Flake8:** 0 violations (88-character limit strictly respected).
-- **Black:** 100% formatted.
-- **isort:** Verified with Black profile.
-- **Bandit:** 0 security vulnerabilities identified across 1,645 lines of scanned code.
+---
+
+## 4. Key Engineering Insights & Decisions
+
+- **Dual-Engine Fallback Strategy:** Relying on native TS binary generation with PAT/PMT/PES packetization (188-byte packets starting with `0x47`) ensures deterministic testability and packaging even in minimal CI containers without external media libraries.
+- **Target Duration Calculation Rule:** RFC 8216 requires `#EXT-X-TARGETDURATION` to be greater than or equal to the ceiling of the longest segment duration ($N = \lceil \max(durations) \rceil$). Failing to clamp upwards can cause player desynchronization and playback aborts.
+- **Configurable URI Prefix Routing:** Supporting dynamic URL prefixes in master and variant playlists enables seamless deployment behind API reverse proxies, CDN paths, or custom asset gateway routes without mutating stored playlist files.
 
 ---
 
-## 5. Next Steps for Day 4
+## 5. Next Steps
 
-Day 4 will implement:
-1. The `TranscodingQueue` service managing thread-safe background job lifecycle states (`QUEUED -> PROCESSING -> COMPLETED | FAILED`).
-2. The `TranscodingWorker` daemon thread continuously polling and executing transcoding tasks.
-3. Live progress reporting (e.g., inspecting 10%, 360p 30%, 720p 60%, 1080p 90%, packaging 100%) and error handling.
-4. Concurrency and lifecycle tests in `test_transcoding_queue.py`.
+- Implement `TranscodingQueue` service managing thread-safe background job lifecycle states (`QUEUED -> PROCESSING -> COMPLETED | FAILED`).
+- Build `TranscodingWorker` daemon thread continuously polling and executing transcoding tasks.
+- Provide live progress reporting (inspecting 10%, 360p 30%, 720p 60%, 1080p 90%, packaging 100%) and error handling.
+- Construct concurrency and lifecycle tests in `test_transcoding_queue.py`.
